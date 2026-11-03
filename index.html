@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BeautyBook</title>
+  <meta name="description" content="성형외과 목록, 별점, 예약 예시 사이트 (샘플 데이터)">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="./">
+        <span class="brand-mark">B</span>
+        <span>BeautyBook</span>
+      </a>
+      <nav class="header-actions">
+        <button class="btn btn-ghost" id="myReservationsBtn" type="button">
+          <span data-i18n="nav.myReservations">내 예약</span>
+          <span class="badge" id="reservationCount" hidden>0</span>
+        </button>
+        <label class="lang-select">
+          <span class="sr-only" data-i18n="nav.language">언어</span>
+          <select id="langSelect" aria-label="Language">
+            <option value="ko">한국어</option>
+            <option value="en">English</option>
+            <option value="ja">日本語</option>
+            <option value="zh">中文</option>
+          </select>
+        </label>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="container">
+      <h1 data-i18n="hero.title">믿을 수 있는 성형외과, 한눈에 비교하고 예약하세요</h1>
+      <p data-i18n="hero.subtitle">실제 이용자 별점과 시술 정보를 확인하고 원하는 날짜에 바로 상담을 예약할 수 있어요.</p>
+      <div class="toolbar">
+        <input id="searchInput" type="search" data-i18n-placeholder="filter.search" placeholder="병원 이름이나 지역으로 검색">
+        <select id="specialtyFilter" aria-label="Specialty"></select>
+        <select id="sortSelect" aria-label="Sort">
+          <option value="rating" data-i18n="sort.rating">별점 높은 순</option>
+          <option value="reviews" data-i18n="sort.reviews">리뷰 많은 순</option>
+          <option value="name" data-i18n="sort.name">이름 순</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <main class="container">
+    <p class="result-count" id="resultCount"></p>
+    <div class="grid" id="clinicGrid" aria-live="polite"></div>
+    <p class="empty" id="emptyState" hidden data-i18n="list.empty">조건에 맞는 병원이 없어요.</p>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p data-i18n="footer.notice">이 사이트는 연습용 예시입니다. 모든 병원 정보는 가상의 샘플 데이터이며, 별점과 예약은 이 브라우저에만 저장됩니다.</p>
+      <p class="muted">&copy; 2026 BeautyBook (demo)</p>
+    </div>
+  </footer>
+
+  <!-- Clinic detail modal -->
+  <dialog id="clinicModal" class="modal">
+    <div class="modal-body" id="clinicModalBody"></div>
+  </dialog>
+
+  <!-- My reservations modal -->
+  <dialog id="reservationsModal" class="modal">
+    <div class="modal-body">
+      <div class="modal-head">
+        <h2 data-i18n="myres.title">내 예약</h2>
+        <button class="icon-btn" type="button" data-close aria-label="Close">&times;</button>
+      </div>
+      <div id="reservationsList"></div>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="js/i18n.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
