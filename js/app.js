@@ -190,7 +190,9 @@
         const isClosed = d && c.closedDays.includes(new Date(d + "T00:00").getDay());
         document.getElementById("dateHint").textContent = isClosed ? t("reserve.closed") : "";
         const slots = timeSlots(c);
-        const taken = await Promise.all(slots.map(s => API.isSlotTaken(c.id, d, s)));
+        let takenList = [];
+        try { takenList = d ? await API.takenSlots(c.id, d) : []; } catch (e) { toast(t("common.serverError"), "error"); }
+        const taken = slots.map(s => takenList.includes(s));
         const now = new Date();
         form.time.innerHTML = slots.map((s, i) => {
           const past = d === todayISO(0) && new Date(d + "T" + s) <= now;
@@ -221,7 +223,8 @@
           await refreshSlots();
           form.memo.value = "";
         } catch (err) {
-          toast(t(err.code === "slot_taken" ? "reserve.taken" : "reserve.invalid"), "error");
+          toast(errorText(err), "error");
+          if (err.code === "slot_taken") await refreshSlots();
         }
       });
     } else if (state.tab === "rate") {
@@ -251,7 +254,12 @@
       form.addEventListener("submit", async e => {
         e.preventDefault();
         if (!value) { toast(t("rate.need"), "error"); return; }
-        await API.addReview(c.id, { rating: value, nick: form.nick.value.trim() || "guest", text: form.text.value.trim() });
+        try {
+          await API.addReview(c.id, { rating: value, nick: form.nick.value.trim() || "guest", text: form.text.value.trim() });
+        } catch (err) {
+          toast(errorText(err), "error");
+          return;
+        }
         toast(t("rate.done"));
         await loadClinics();
         renderList();
@@ -259,7 +267,8 @@
         renderDetail();
       });
     } else {
-      const reviews = await API.listReviews(c.id);
+      let reviews = [];
+      try { reviews = await API.listReviews(c.id); } catch (e) { toast(t("common.serverError"), "error"); }
       box.innerHTML = reviews.length ? `<ul class="reviews">${reviews.map(r => `
         <li>
           <div class="rating-row">${stars(r.rating)} <strong>${esc(r.nick)}</strong>
@@ -271,7 +280,8 @@
 
   /* ---------- 내 예약 ---------- */
   async function renderReservations() {
-    const list = await API.listReservations();
+    let list = [];
+    try { list = await API.listReservations(); } catch (e) { toast(t("common.serverError"), "error"); }
     if (!list.length) {
       el.resList.innerHTML = `<p class="muted">${esc(t("myres.empty"))}</p>`;
       return;
@@ -290,9 +300,16 @@
   }
 
   async function updateReservationBadge() {
-    const n = (await API.listReservations()).length;
+    let n = 0;
+    try { n = (await API.listReservations()).length; } catch (e) {}
     el.resCount.textContent = n;
     el.resCount.hidden = n === 0;
+  }
+
+  /* ---------- 오류 메시지 ---------- */
+  function errorText(err) {
+    const map = { slot_taken: "reserve.taken", clinic_closed: "reserve.closed", network: "common.serverError" };
+    return t(map[err && err.code] || "reserve.invalid");
   }
 
   /* ---------- 토스트 ---------- */
@@ -341,7 +358,7 @@
     el.resList.addEventListener("click", async e => {
       const btn = e.target.closest("[data-cancel]");
       if (!btn || !confirm(t("myres.cancelConfirm"))) return;
-      await API.cancelReservation(btn.dataset.cancel);
+      try { await API.cancelReservation(btn.dataset.cancel); } catch (err) { toast(errorText(err), "error"); return; }
       toast(t("myres.canceled"));
       await renderReservations();
       updateReservationBadge();
@@ -349,10 +366,11 @@
   }
 
   async function init() {
-    await loadClinics();
+    try { await loadClinics(); } catch (e) { state.clinics = []; }
     applyStaticText();
     bind();
     renderList();
+    if (!state.clinics.length && API.mode === "server") toast(t("common.serverError"), "error");
     updateReservationBadge();
   }
   init();
