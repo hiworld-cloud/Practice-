@@ -71,7 +71,7 @@ http://localhost:8000 을 열면 사이트가 서버 모드로 동작합니다. 
 ## 다음 단계
 
 1. ~~백엔드 만들기 (FastAPI + DB)~~ ✅
-2. 공공데이터포털 API로 진짜 병원 목록 가져오기
+2. ~~공공데이터포털 API로 진짜 병원 목록 가져오기~~ ✅ (`python -m app.import_hira`, backend/README.md 참고)
 3. 서버 배포 (Render + Supabase) 후 `js/config.js`에 서버 주소 넣기
 4. 카카오 로그인
 5. .com 도메인 연결

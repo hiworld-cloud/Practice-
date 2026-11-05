@@ -145,14 +145,14 @@
           <h4>${esc(t("detail.about"))}</h4>
           <p>${esc(L(c.about))}</p>
           <dl class="facts">
-            <dt>${esc(t("detail.hours"))}</dt><dd>${c.hours.open} – ${c.hours.close} · ${esc(t("weekday.closed", { d: closed }))}</dd>
+            <dt>${esc(t("detail.hours"))}</dt><dd>${c.hours.open} – ${c.hours.close} · ${esc(t("weekday.closed", { d: closed }))}${c.hoursEstimated ? `<br><span class="muted">${esc(t("detail.hoursEstimated"))}</span>` : ""}</dd>
             <dt>${esc(t("detail.address"))}</dt><dd>${esc(L(c.address))}</dd>
             <dt>${esc(t("detail.phone"))}</dt><dd>${esc(c.phone)}</dd>
-            <dt>${esc(t("detail.doctors"))}</dt><dd>${c.doctors.map(d => esc(L(d.name))).join(", ")}</dd>
+            ${c.doctors.length ? `<dt>${esc(t("detail.doctors"))}</dt><dd>${c.doctors.map(d => esc(L(d.name))).join(", ")}</dd>` : ""}
           </dl>
           <h4>${esc(t("detail.procedures"))}</h4>
           <ul class="price-list">${c.procedures.map(p =>
-            `<li><span>${esc(L(PROCEDURES[p.key]))}</span><span>${esc(t("detail.priceFrom", { p: won(p.price) }))}</span></li>`).join("")}</ul>
+            `<li><span>${esc(L(PROCEDURES[p.key]))}</span><span>${esc(p.price ? t("detail.priceFrom", { p: won(p.price) }) : t("detail.priceAsk"))}</span></li>`).join("")}</ul>
         </section>
         <section class="panel">
           <div class="tabs" role="tablist">

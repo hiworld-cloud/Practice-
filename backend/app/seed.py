@@ -6,7 +6,7 @@
 import json
 from pathlib import Path
 
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from .db import create_tables, engine
 from .models import Clinic, Review
@@ -19,6 +19,9 @@ def load_seed() -> dict:
 
 
 def seed(session: Session) -> int:
+    # 이미 병원이 하나라도 있으면(공공데이터를 넣었거나 샘플을 지운 경우) 다시 넣지 않습니다.
+    if session.exec(select(Clinic.id).limit(1)).first():
+        return 0
     data = load_seed()
     added = 0
     for c in data["clinics"]:

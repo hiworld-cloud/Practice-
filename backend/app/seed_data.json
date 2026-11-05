@@ -109,6 +109,12 @@
       "en": "Liposuction",
       "ja": "脂肪吸引",
       "zh": "吸脂"
+    },
+    "consult": {
+      "ko": "일반 상담",
+      "en": "General consultation",
+      "ja": "一般カウンセリング",
+      "zh": "一般咨询"
     }
   },
   "clinics": [

@@ -28,6 +28,10 @@ class Clinic(SQLModel, table=True):
     hours_close: str  # "19:00"
     closed_days: list = Field(sa_column=Column(JSON, nullable=False))  # 0=일요일 ... 6=토요일
     hue: int = 0  # 카드 색상
+    # "sample" = 가상 샘플, "hira" = 건강보험심사평가원 공공데이터
+    source: str = Field(default="sample", index=True)
+    # 공공데이터에 없는 값(진료 시간, 휴진일)을 기본값으로 채웠는지 여부
+    hours_estimated: bool = False
 
 
 class Review(SQLModel, table=True):
