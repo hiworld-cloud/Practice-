@@ -23,7 +23,8 @@ window.PROCEDURES = {
   laserToning:  { ko: "레이저 토닝", en: "Laser toning", ja: "レーザートーニング", zh: "激光嫩肤" },
   botox:        { ko: "보톡스", en: "Botox", ja: "ボトックス", zh: "肉毒素" },
   filler:       { ko: "필러", en: "Filler", ja: "ヒアルロン酸", zh: "玻尿酸" },
-  lipo:         { ko: "지방흡입", en: "Liposuction", ja: "脂肪吸引", zh: "吸脂" }
+  lipo:         { ko: "지방흡입", en: "Liposuction", ja: "脂肪吸引", zh: "吸脂" },
+  consult:      { ko: "일반 상담", en: "General consultation", ja: "一般カウンセリング", zh: "一般咨询" }
 };
 
 window.CLINICS = [

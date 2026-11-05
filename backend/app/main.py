@@ -87,6 +87,7 @@ def clinic_out(c: Clinic, rating: float, count: int) -> dict[str, Any]:
         "specialties": c.specialties, "about": c.about, "doctors": c.doctors,
         "procedures": c.procedures, "hours": {"open": c.hours_open, "close": c.hours_close},
         "closedDays": c.closed_days, "hue": c.hue, "rating": rating, "count": count,
+        "source": c.source, "hoursEstimated": c.hours_estimated,
     }
 
 
