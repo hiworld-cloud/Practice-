@@ -38,7 +38,10 @@ SessionDep = Annotated[Session, Depends(db.get_session)]
 async def lifespan(_app: FastAPI):
     db.create_tables()
     with Session(db.engine) as s:
-        seed(s)
+        # DB가 비어 있을 때만 가상 샘플 병원을 넣어요.
+        # 공공데이터로 진짜 병원을 넣고 샘플을 지운 뒤에는 다시 생기지 않아요.
+        if s.exec(select(Clinic).limit(1)).first() is None:
+            seed(s)
     yield
 
 

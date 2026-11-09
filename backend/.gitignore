@@ -2,3 +2,5 @@
 __pycache__/
 .venv/
 .pytest_cache/
+# 인증키 같은 비밀값이 들어 있는 파일 (절대 GitHub에 올리지 않기)
+.env
