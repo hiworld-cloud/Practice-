@@ -152,7 +152,7 @@
           </dl>
           <h4>${esc(t("detail.procedures"))}</h4>
           <ul class="price-list">${c.procedures.map(p =>
-            `<li><span>${esc(L(PROCEDURES[p.key]))}</span><span>${esc(t("detail.priceFrom", { p: won(p.price) }))}</span></li>`).join("")}</ul>
+            `<li><span>${esc(L(PROCEDURES[p.key]))}</span><span>${esc(p.price ? t("detail.priceFrom", { p: won(p.price) }) : t("detail.priceAsk"))}</span></li>`).join("")}</ul>
         </section>
         <section class="panel">
           <div class="tabs" role="tablist">
