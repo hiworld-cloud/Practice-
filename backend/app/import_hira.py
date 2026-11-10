@@ -146,6 +146,9 @@ def fetch_all(service_key: str, sido_code: Optional[str] = None, limit: Optional
         total = int(body.get("totalCount") or 0)
         if page == 1:
             print(f"API에서 찾은 성형외과 진료 병원: {total}곳")
+        want = total if limit is None else min(total, limit)
+        pages = max(1, -(-want // rows))  # 올림 나눗셈
+        print(f"  받는 중... {page}/{pages} 페이지", flush=True)
         for it in items:
             yield it
             seen += 1
@@ -269,7 +272,7 @@ def main(argv: Optional[list[str]] = None) -> int:
 
         create_tables()
         with Session(engine) as s:
-            added, updated = upsert(s, items)
+            added, updated = upsert(s, items)  # 다 받은 뒤 한 번에 저장해요
             print(f"DB 저장 완료: 새로 추가 {added}곳, 정보 갱신 {updated}곳")
             if args.remove_samples:
                 print(f"가상 샘플 병원 {remove_samples(s)}곳을 지웠어요.")
