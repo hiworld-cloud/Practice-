@@ -10,7 +10,7 @@ backend/
 ├─ app/
 │  ├─ main.py        API 주소(라우트)와 예약 검증 규칙
 │  ├─ models.py      DB 테이블: Clinic, Review, Reservation
-│  ├─ db.py          DB 연결 (기본은 SQLite 파일, DATABASE_URL로 변경)
+│  ├─ db.py          DB 연결 (기본은 SQLite 파일, DATABASE_URL이 있으면 PostgreSQL)
 │  ├─ seed.py        샘플 병원·리뷰를 DB에 넣는 스크립트
 │  ├─ seed_data.json 샘플 병원 데이터 (가상)
 │  └─ import_hira.py 공공데이터 API에서 진짜 성형외과 목록을 불러오는 스크립트
@@ -109,12 +109,37 @@ python -m app.import_hira                                    # 전국 전체
 
 진료 시간은 같은 서비스의 상세정보 API로 나중에 채울 수 있어요.
 
+## 인터넷에 배포하기 (Render + Supabase)
+
+| 무엇 | 어디에 | 무료 플랜에서 알아 둘 것 |
+| --- | --- | --- |
+| DB (PostgreSQL) | Supabase | 1주일 넘게 아무 요청이 없으면 프로젝트가 일시정지돼요. 대시보드에서 다시 켜면 돼요 |
+| API 서버 | Render | 15분 동안 요청이 없으면 잠들어요. 다음 첫 요청은 30초~1분 걸려요 (화면에 "서버를 깨우는 중" 표시) |
+| 화면 | GitHub Pages | 지금 그대로 |
+
+1. **Supabase**에서 새 프로젝트를 만들고(지역: Southeast Asia (Singapore)), **Connect** 버튼 → **Session pooler** 주소를 복사해요.
+   `[YOUR-PASSWORD]` 부분은 프로젝트 만들 때 정한 DB 비밀번호로 바꿔요.
+   (Direct connection 주소는 IPv6 전용이라 Render에서 연결이 안 돼요. 꼭 **Session pooler**를 쓰세요.)
+2. **Render**에서 **New → Blueprint** → 이 저장소를 고르면 저장소 맨 위의 `render.yaml`대로 서버가 만들어져요.
+   `DATABASE_URL` 칸에 1번 주소를 붙여 넣어요.
+3. 배포가 끝나면 `https://beautybook-api.onrender.com/api/health` 처럼 Render가 준 주소 뒤에 `/api/health`를 붙여 열어 봐요. `{"ok":true}`가 나오면 성공이에요.
+   처음 켜질 때 DB가 비어 있으면 가상 샘플 병원 8곳이 들어가요.
+4. **진짜 병원 넣기**: 내 컴퓨터의 `backend/.env`에 `DATABASE_URL=1번 주소`를 한 줄 적고
+   `python -m app.import_hira --sido 서울 --remove-samples`를 실행해요. "저장할 곳: PostgreSQL 서버 (...pooler.supabase.com)"가 보이면 Supabase에 들어가는 거예요.
+   끝나면 그 줄 앞에 `#`을 붙여 두세요 (안 그러면 다음 불러오기도 Supabase로 가요).
+5. **화면 연결**: `js/config.js`의 `null`을 Render 주소(예: `"https://beautybook-api.onrender.com"`)로 바꿔서 main에 머지하면
+   GitHub Pages 사이트가 배포된 서버를 써요.
+
+`main`에 머지할 때마다 Render가 자동으로 다시 배포해요.
+
 ## 테스트
 
 ```bash
 cd backend
 pytest
 ```
+
+PostgreSQL에서도 확인하려면 **테스트용** DB 주소를 `TEST_DATABASE_URL`에 넣고 실행해요. 테이블을 지웠다 다시 만들기 때문에 실제 Supabase 주소는 넣지 마세요.
 
 ## API
 
@@ -141,7 +166,7 @@ pytest
 
 | 이름 | 기본값 | 설명 |
 | --- | --- | --- |
-| `DATABASE_URL` | `sqlite:///backend/beautybook.db` | 3단계에서 Supabase 같은 PostgreSQL 주소로 바꿉니다 |
+| `DATABASE_URL` | `sqlite:///backend/beautybook.db` | Supabase의 Session pooler 주소. `postgresql://...`를 그대로 붙여 넣으면 돼요 |
 | `CORS_ORIGINS` | `*` | 이 API를 부를 수 있는 사이트 주소. 배포할 때는 `https://hiworld-cloud.github.io`처럼 실제 주소만 적으세요 |
 | `HIRA_SERVICE_KEY` | (없음) | 공공데이터포털 인증키(Decoding). `backend/.env`에 적으면 불러오기 스크립트가 읽어요 |
 

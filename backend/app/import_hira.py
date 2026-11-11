@@ -268,8 +268,11 @@ def main(argv: Optional[list[str]] = None) -> int:
             print(f"(dry-run) {n}곳을 받아왔어요. DB에는 넣지 않았어요.")
             return 0
 
-        from .db import create_tables, engine
+        from .db import IS_SQLITE, create_tables, engine
 
+        # 어느 DB에 넣는지 먼저 보여 줘요 (비밀번호는 가려서). Supabase에 넣으려면 .env 에 DATABASE_URL 을 적으세요.
+        where = "내 컴퓨터의 SQLite 파일" if IS_SQLITE else f"PostgreSQL 서버 ({engine.url.host})"
+        print(f"저장할 곳: {where}")
         create_tables()
         with Session(engine) as s:
             added, updated = upsert(s, items)  # 다 받은 뒤 한 번에 저장해요

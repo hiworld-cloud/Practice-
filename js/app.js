@@ -314,14 +314,14 @@
 
   /* ---------- 토스트 ---------- */
   let toastTimer;
-  function toast(msg, kind) {
+  function toast(msg, kind, ms) {
     // 모달(dialog)은 최상위 레이어에 그려지므로, 열려 있으면 토스트를 그 안으로 옮깁니다.
     const host = [el.modal, el.resModal].find(m => m.open) || document.body;
     if (el.toast.parentNode !== host) host.appendChild(el.toast);
     el.toast.textContent = msg;
     el.toast.className = "toast show" + (kind === "error" ? " error" : "");
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { el.toast.className = "toast"; }, 2800);
+    toastTimer = setTimeout(() => { el.toast.className = "toast"; }, ms || 2800);
   }
 
   /* ---------- 이벤트 ---------- */
@@ -366,9 +366,13 @@
   }
 
   async function init() {
-    try { await loadClinics(); } catch (e) { state.clinics = []; }
     applyStaticText();
     bind();
+    // 무료 서버(Render)는 한동안 아무도 안 쓰면 잠들어서, 첫 요청에 30초~1분쯤 걸려요.
+    // 3초 넘게 걸리면 "서버를 깨우는 중"이라고 알려 줘요.
+    const slow = API.mode === "server" ? setTimeout(() => toast(t("common.waking"), "", 60000), 3000) : null;
+    try { await loadClinics(); } catch (e) { state.clinics = []; }
+    if (slow) { clearTimeout(slow); clearTimeout(toastTimer); el.toast.className = "toast"; }
     renderList();
     if (!state.clinics.length && API.mode === "server") toast(t("common.serverError"), "error");
     updateReservationBadge();

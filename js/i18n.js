@@ -51,6 +51,7 @@ window.I18N = {
     "myres.canceled": "예약이 취소되었어요.",
     "common.close": "닫기",
     "common.serverError": "서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.",
+    "common.waking": "서버를 깨우는 중이에요. 처음 한 번은 1분 정도 걸릴 수 있어요…",
     "weekday.closed": "{d} 휴진",
     "footer.notice": "이 사이트는 연습용 예시입니다. 모든 병원 정보는 가상의 샘플 데이터이며, 별점과 예약은 이 브라우저에만 저장됩니다."
   },
@@ -105,6 +106,7 @@ window.I18N = {
     "myres.canceled": "Booking canceled.",
     "common.close": "Close",
     "common.serverError": "Could not reach the server. Please try again shortly.",
+    "common.waking": "Waking up the server. The first load can take up to a minute…",
     "weekday.closed": "Closed {d}",
     "footer.notice": "This is a practice demo. All clinics are fictional sample data, and ratings and bookings are stored only in this browser."
   },
@@ -159,6 +161,7 @@ window.I18N = {
     "myres.canceled": "予約をキャンセルしました。",
     "common.close": "閉じる",
     "common.serverError": "サーバーに接続できませんでした。しばらくしてから再度お試しください。",
+    "common.waking": "サーバーを起動しています。初回は1分ほどかかることがあります…",
     "weekday.closed": "{d}休診",
     "footer.notice": "このサイトは練習用のデモです。クリニック情報はすべて架空のサンプルで、評価と予約はこのブラウザにのみ保存されます。"
   },
@@ -213,6 +216,7 @@ window.I18N = {
     "myres.canceled": "预约已取消。",
     "common.close": "关闭",
     "common.serverError": "无法连接服务器，请稍后再试。",
+    "common.waking": "正在唤醒服务器，首次加载可能需要约一分钟…",
     "weekday.closed": "{d}休诊",
     "footer.notice": "本网站为练习用示例。所有医院信息均为虚构的示例数据，评分和预约仅保存在此浏览器中。"
   }
