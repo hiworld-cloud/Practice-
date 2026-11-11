@@ -5,4 +5,4 @@
  *   "https://api.example.com" → 그 주소의 API 사용 (서버를 배포한 뒤 여기에 적으면 됩니다)
  * 주소창에 ?api=http://localhost:8000 을 붙이면 잠깐 바꿔서 테스트할 수도 있습니다.
  */
-window.BEAUTYBOOK_API_BASE = null;
+window.BEAUTYBOOK_API_BASE = "https://beautybook-api-a8o9.onrender.com";
