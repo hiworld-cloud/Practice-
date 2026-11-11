@@ -1,0 +1,20 @@
+# Render 설정 파일 (Blueprint). Render 대시보드에서 New → Blueprint 로 이 저장소를 고르면
+# 아래 내용대로 백엔드 서버가 만들어져요. 비밀값(sync: false)은 Render 화면에서 직접 입력해요.
+services:
+  - type: web
+    name: beautybook-api
+    runtime: python
+    plan: free
+    region: singapore          # 한국에서 가장 가까운 지역
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    autoDeploy: true           # main 에 머지되면 자동으로 다시 배포
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.9
+      - key: DATABASE_URL      # Supabase 연결 주소 (Session pooler). Render 화면에서 붙여 넣기
+        sync: false
+      - key: CORS_ORIGINS      # 이 API를 부를 수 있는 사이트 주소
+        value: https://hiworld-cloud.github.io
