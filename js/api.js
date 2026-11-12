@@ -12,6 +12,10 @@
  *   listReservations()            GET    /api/reservations/me
  *   createReservation(data)       POST   /api/reservations
  *   cancelReservation(id)         DELETE /api/reservations/{id}
+ *   me()                          GET    /api/auth/me   (로그인 안 했으면 null)
+ *   loginUrl(돌아올주소)           카카오 로그인 시작 주소 (서버 모드만)
+ *   logout()                      저장해 둔 로그인 토큰 지우기
+ *   loginError                    방금 로그인이 실패했으면 그 이유 (예: "access_denied")
  *
  * 실패하면 err.code 가 담긴 Error를 던집니다 (예: "slot_taken", "network").
  */
@@ -47,6 +51,10 @@
 
     return {
       mode: "local",
+      loginError: null,
+      async me() { return null; },
+      loginUrl() { return null; },
+      logout() {},
       async listClinics() {
         return window.CLINICS.map(c => Object.assign({}, c, summary(c)));
       },
@@ -96,26 +104,63 @@
       return id;
     }
 
+    /* 카카오 로그인 토큰.
+     * 로그인에 성공하면 서버가 이 페이지 주소 뒤에 #bb_token=... 을 붙여서 돌려보내요.
+     * 그 값을 저장해 두고 주소창에서는 지워요. */
+    const TOKEN_KEY = "bb.token";
+    let token = null;
+    let loginError = null;
+    try { token = localStorage.getItem(TOKEN_KEY); } catch (e) {}
+    try {
+      const h = new URLSearchParams(location.hash.slice(1));
+      if (h.get("bb_token") || h.get("login_error")) {
+        if (h.get("bb_token")) {
+          token = h.get("bb_token");
+          try { localStorage.setItem(TOKEN_KEY, token); } catch (e) {}
+        }
+        loginError = h.get("login_error");
+        history.replaceState(null, "", location.pathname + location.search);
+      }
+    } catch (e) {}
+    function clearToken() {
+      token = null;
+      try { localStorage.removeItem(TOKEN_KEY); } catch (e) {}
+    }
+
     async function call(method, path, body) {
+      const headers = { "X-Guest-Id": guestId() };
+      if (body) headers["Content-Type"] = "application/json";
+      if (token) headers.Authorization = "Bearer " + token;
       let res;
       try {
-        res = await fetch(base + path, {
-          method,
-          headers: Object.assign({ "X-Guest-Id": guestId() }, body ? { "Content-Type": "application/json" } : {}),
-          body: body ? JSON.stringify(body) : undefined
-        });
+        res = await fetch(base + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
       } catch (e) {
         throw fail("network");
       }
       if (res.status === 204) return null;
       const data = await res.json().catch(() => null);
-      if (!res.ok) throw fail((data && data.detail && data.detail.code) || "http_" + res.status);
+      const code = (data && data.detail && data.detail.code) || "http_" + res.status;
+      if (code === "invalid_token" && headers.Authorization) {
+        clearToken(); // 7일이 지났거나 잘못된 토큰 → 로그아웃 상태로 바꾸고 한 번 더 시도
+        return call(method, path, body);
+      }
+      if (!res.ok) throw fail(code);
       return data;
     }
 
     const enc = encodeURIComponent;
     return {
       mode: "server",
+      loginError,
+      async me() {
+        if (!token) return null;
+        try { return await call("GET", "/api/auth/me"); } catch (e) {
+          if (e.code === "login_required") return null;
+          throw e;
+        }
+      },
+      loginUrl: back => `${base}/api/auth/kakao/login?next=${enc(back)}`,
+      logout: clearToken,
       listClinics: () => call("GET", "/api/clinics"),
       listReviews: id => call("GET", `/api/clinics/${enc(id)}/reviews`),
       addReview: (id, data) => call("POST", `/api/clinics/${enc(id)}/reviews`, data),
