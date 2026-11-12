@@ -9,7 +9,8 @@
 backend/
 ├─ app/
 │  ├─ main.py        API 주소(라우트)와 예약 검증 규칙
-│  ├─ models.py      DB 테이블: Clinic, Review, Reservation
+│  ├─ models.py      DB 테이블: Clinic, Review, Reservation, User
+│  ├─ auth.py        카카오 로그인 + 로그인 토큰
 │  ├─ db.py          DB 연결 (기본은 SQLite 파일, DATABASE_URL이 있으면 PostgreSQL)
 │  ├─ seed.py        샘플 병원·리뷰를 DB에 넣는 스크립트
 │  ├─ seed_data.json 샘플 병원 데이터 (가상)
@@ -148,19 +149,30 @@ PostgreSQL에서도 확인하려면 **테스트용** DB 주소를 `TEST_DATABASE
 | GET | `/api/clinics` | 병원 목록 (평균 별점, 리뷰 수 포함) |
 | GET | `/api/clinics/{id}` | 병원 하나 |
 | GET | `/api/clinics/{id}/reviews` | 리뷰 목록 (최신순) |
-| POST | `/api/clinics/{id}/reviews` | 리뷰 작성 `{rating 1~5, nick, text}` |
+| POST | `/api/clinics/{id}/reviews` | 리뷰 작성 `{rating 1~5, text}` · **로그인 필요**, 한 병원에 1인 1리뷰 |
 | GET | `/api/clinics/{id}/taken-slots?date=YYYY-MM-DD` | 그날 이미 예약된 시간 |
 | GET | `/api/reservations/me` | 내 예약 목록 |
 | POST | `/api/reservations` | 예약 `{clinicId, name, phone, procedure, date, time, memo}` |
 | DELETE | `/api/reservations/{id}` | 내 예약 취소 |
+| GET | `/api/auth/kakao/login?next=돌아갈주소` | 카카오 로그인 화면으로 이동 |
+| GET | `/api/auth/kakao/callback` | 카카오가 로그인 후 돌려보내는 주소 (카카오에 등록) |
+| GET | `/api/auth/me` | 지금 로그인한 사람 `{id, nickname}` |
 
 예약할 때 서버가 확인하는 것: 휴진일, 진료 시간 안의 30분 단위 시간, 오늘~60일 이내, 이미 지난 시간, 그 병원의 시술인지,
 그리고 **같은 시간 중복 예약**(DB 제약으로 막아서 동시에 눌러도 한 명만 성공)입니다.
 
-### 아직 로그인이 없어서
+### 카카오 로그인 (4단계)
 
-브라우저마다 임의의 ID를 만들어 `X-Guest-Id` 헤더로 보내고, 이걸로 "내 예약"과 "내 리뷰"를 구분합니다.
-로드맵 4단계(카카오 로그인)에서 이 부분을 진짜 회원 ID로 바꿀 예정입니다.
+1. 화면의 **카카오 로그인** 버튼 → 서버의 `/api/auth/kakao/login` → 카카오 로그인 화면
+2. 카카오에서 로그인하면 카카오가 `/api/auth/kakao/callback?code=...`로 돌려보내요.
+3. 서버가 code로 카카오에 회원번호·닉네임을 물어보고, 처음 온 사람이면 `app_user` 테이블에 회원을 만들어요.
+4. 서버가 7일짜리 **로그인 토큰**을 만들어 `화면주소#bb_token=...`으로 돌려보내고, 화면은 이 토큰을 저장해서
+   요청마다 `Authorization: Bearer 토큰` 헤더로 보내요.
+
+리뷰 쓰기는 로그인한 사람만, 한 병원에 한 번만 할 수 있어요. 리뷰 닉네임은 카카오 닉네임이에요.
+예약은 아직 로그인 없이 브라우저마다 만든 임의의 ID(`X-Guest-Id` 헤더)로 "내 예약"을 구분해요.
+
+코드는 `app/auth.py`에 있어요. 이미 Supabase에 있는 `review` 테이블에는 서버가 켜질 때 `user_id` 칸을 자동으로 추가해요 (`db.py`의 `add_missing_columns`).
 
 ## 설정 (환경변수)
 
@@ -168,6 +180,11 @@ PostgreSQL에서도 확인하려면 **테스트용** DB 주소를 `TEST_DATABASE
 | --- | --- | --- |
 | `DATABASE_URL` | `sqlite:///backend/beautybook.db` | Supabase의 Session pooler 주소. `postgresql://...`를 그대로 붙여 넣으면 돼요 |
 | `CORS_ORIGINS` | `*` | 이 API를 부를 수 있는 사이트 주소. 배포할 때는 `https://hiworld-cloud.github.io`처럼 실제 주소만 적으세요 |
+| `KAKAO_REST_API_KEY` | (없음) | 카카오 앱의 REST API 키. 없으면 로그인 버튼을 눌러도 "준비 중"이라고 나와요 |
+| `KAKAO_CLIENT_SECRET` | (없음) | 카카오 앱의 Client Secret 코드 (카카오에서 켜 두었으면 꼭 필요) |
+| `KAKAO_REDIRECT_URI` | `http://localhost:8000/api/auth/kakao/callback` | 카카오에 등록한 Redirect URI와 똑같이 |
+| `SECRET_KEY` | (켤 때마다 새로 생성) | 로그인 토큰 서명용 비밀값. 배포 서버에는 꼭 넣기 (Render가 자동 생성) |
+| `FRONTEND_URL` | `/` | 로그인 후 돌아갈 기본 화면 주소 |
 | `HIRA_SERVICE_KEY` | (없음) | 공공데이터포털 인증키(Decoding). `backend/.env`에 적으면 불러오기 스크립트가 읽어요 |
 
 ## 프론트와 연결되는 방식

@@ -18,3 +18,14 @@ services:
         sync: false
       - key: CORS_ORIGINS      # 이 API를 부를 수 있는 사이트 주소
         value: https://hiworld-cloud.github.io
+      # ---- 4단계: 카카오 로그인 ----
+      - key: KAKAO_REST_API_KEY  # 카카오 앱의 REST API 키. Render 화면에서 붙여 넣기
+        sync: false
+      - key: KAKAO_CLIENT_SECRET # 카카오 앱의 Client Secret 코드. Render 화면에서 붙여 넣기
+        sync: false
+      - key: KAKAO_REDIRECT_URI  # 카카오 개발자 사이트에 등록한 주소와 글자 하나까지 같아야 해요
+        value: https://beautybook-api-a8o9.onrender.com/api/auth/kakao/callback
+      - key: FRONTEND_URL        # 로그인 후 돌아갈 화면 주소
+        value: https://hiworld-cloud.github.io/Practice-/
+      - key: SECRET_KEY          # 로그인 토큰 서명용 비밀값. Render가 무작위로 만들어 줘요
+        generateValue: true
