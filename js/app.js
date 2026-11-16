@@ -10,7 +10,7 @@
     lang: $("#langSelect"), modal: $("#clinicModal"), modalBody: $("#clinicModalBody"),
     resModal: $("#reservationsModal"), resList: $("#reservationsList"),
     resBtn: $("#myReservationsBtn"), resCount: $("#reservationCount"), toast: $("#toast"),
-    authBox: $("#authBox")
+    authBox: $("#authBox"), loginModal: $("#loginModal"), loginForm: $("#loginForm")
   };
 
   /* ---------- 언어 ---------- */
@@ -42,8 +42,57 @@
   }
 
   /* ---------- 카카오 로그인 ---------- */
-  function startLogin() {
+  function startKakaoLogin() {
+    try { sessionStorage.setItem("bb.justLoggedIn", "1"); } catch (e) {}
     location.href = API.loginUrl(location.href.split("#")[0]);
+  }
+
+  /* 로그인 / 회원가입 창 */
+  let authMode = "login";
+  function setAuthMode(mode) {
+    authMode = mode;
+    const f = el.loginForm;
+    el.loginModal.querySelectorAll("[data-auth-mode]").forEach(b => {
+      const on = b.dataset.authMode === mode;
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-selected", String(on));
+    });
+    document.getElementById("loginTitle").textContent = t(mode === "login" ? "auth.title" : "auth.signupTitle");
+    document.getElementById("nicknameField").hidden = mode === "login";
+    document.getElementById("passwordHint").hidden = mode === "login";
+    f.nickname.required = mode === "signup";
+    f.password.autocomplete = mode === "login" ? "current-password" : "new-password";
+    document.getElementById("loginSubmit").textContent = t(mode === "login" ? "auth.tabLogin" : "auth.tabSignup");
+  }
+  function openLogin(mode) {
+    el.loginForm.reset();
+    setAuthMode(mode || "login");
+    el.loginModal.showModal();
+    el.loginForm.email.focus();
+  }
+  async function submitLogin(e) {
+    e.preventDefault();
+    const f = el.loginForm;
+    const data = { email: f.email.value.trim(), password: f.password.value };
+    if (authMode === "signup") data.nickname = f.nickname.value.trim();
+    if (!data.email || !data.password || (authMode === "signup" && !data.nickname)) {
+      toast(t("reserve.invalid"), "error");
+      return;
+    }
+    const btn = document.getElementById("loginSubmit");
+    btn.disabled = true;
+    try {
+      state.user = authMode === "login" ? await API.login(data) : await API.signup(data);
+    } catch (err) {
+      toast(errorText(err), "error");
+      return;
+    } finally {
+      btn.disabled = false;
+    }
+    el.loginModal.close();
+    renderAuth();
+    if (el.modal.open && state.openId) renderDetail();
+    toast(t(authMode === "login" ? "auth.welcome" : "auth.signedUp", { name: state.user.nickname }));
   }
 
   function renderAuth() {
@@ -53,7 +102,7 @@
     el.authBox.innerHTML = state.user
       ? `<span class="auth-name">${esc(t("auth.hello", { name: state.user.nickname }))}</span>
          <button class="btn btn-ghost" type="button" data-logout>${esc(t("auth.logout"))}</button>`
-      : `<button class="btn btn-kakao" type="button" data-login>${esc(t("auth.login"))}</button>`;
+      : `<button class="btn btn-primary btn-small" type="button" data-login>${esc(t("auth.login"))}</button>`;
   }
 
   async function loadUser() {
@@ -73,6 +122,7 @@
     renderList();
     if (el.modal.open && state.openId) renderDetail();
     if (el.resModal.open) renderReservations();
+    if (el.loginModal.open) setAuthMode(authMode);
   }
 
   /* ---------- 별 ---------- */
@@ -259,7 +309,7 @@
         box.innerHTML = `
           <div class="login-gate">
             <p>${esc(t("auth.needLogin"))}</p>
-            <button class="btn btn-kakao" type="button" data-login>${esc(t("auth.login"))}</button>
+            <button class="btn btn-primary btn-small" type="button" data-login>${esc(t("auth.login"))}</button>
           </div>`;
         return;
       }
@@ -349,7 +399,9 @@
   function errorText(err) {
     const map = {
       slot_taken: "reserve.taken", clinic_closed: "reserve.closed", network: "common.serverError",
-      login_required: "auth.needLogin", invalid_token: "auth.needLogin", already_reviewed: "rate.already"
+      login_required: "auth.needLogin", invalid_token: "auth.needLogin", already_reviewed: "rate.already",
+      invalid_email: "auth.badEmail", weak_password: "auth.passwordRule", nickname_required: "auth.needNickname",
+      email_taken: "auth.emailTaken", wrong_credentials: "auth.wrong", too_many_attempts: "auth.locked"
     };
     return t(map[err && err.code] || "reserve.invalid");
   }
@@ -358,7 +410,7 @@
   let toastTimer;
   function toast(msg, kind, ms) {
     // 모달(dialog)은 최상위 레이어에 그려지므로, 열려 있으면 토스트를 그 안으로 옮깁니다.
-    const host = [el.modal, el.resModal].find(m => m.open) || document.body;
+    const host = [el.loginModal, el.modal, el.resModal].find(m => m.open) || document.body;
     if (el.toast.parentNode !== host) host.appendChild(el.toast);
     el.toast.textContent = msg;
     el.toast.className = "toast show" + (kind === "error" ? " error" : "");
@@ -371,8 +423,11 @@
     // 로그인 버튼은 머리말과 리뷰 탭 두 곳에 있어서 문서 전체에서 한 번에 처리해요.
     document.addEventListener("click", e => {
       if (e.target.closest("[data-login]")) {
-        try { sessionStorage.setItem("bb.justLoggedIn", "1"); } catch (err) {}
-        startLogin();
+        openLogin("login");
+      } else if (e.target.closest("[data-kakao]")) {
+        startKakaoLogin();
+      } else if (e.target.closest("[data-auth-mode]")) {
+        setAuthMode(e.target.closest("[data-auth-mode]").dataset.authMode);
       } else if (e.target.closest("[data-logout]")) {
         API.logout();
         state.user = null;
@@ -400,7 +455,8 @@
       if (tab) { state.tab = tab.dataset.tab; renderDetail(); }
     });
 
-    [el.modal, el.resModal].forEach(m => {
+    el.loginForm.addEventListener("submit", submitLogin);
+    [el.modal, el.resModal, el.loginModal].forEach(m => {
       m.addEventListener("click", e => {
         if (e.target === m || e.target.closest("[data-close]")) m.close();
       });

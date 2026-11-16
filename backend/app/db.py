@@ -43,18 +43,48 @@ def create_tables(bind=None) -> None:
 
 # create_all()은 "없는 테이블"만 만들고, 이미 있는 테이블에 새 칸(컬럼)을 추가하지는 않아요.
 # 그래서 Supabase에 이미 있는 테이블에 새로 생긴 칸을 여기서 직접 추가해요. (아주 간단한 마이그레이션)
+# (표, 칸, 종류, 찾기용 색인: "index" / 같은 값 금지 "unique" / 없음 None)
 NEW_COLUMNS = [
-    ("review", "user_id", "INTEGER"),  # 4단계: 카카오 로그인 회원 번호
+    ("review", "user_id", "INTEGER", "index"),  # 4단계: 카카오 로그인 회원 번호
+    ("app_user", "email", "VARCHAR(254)", "unique"),  # 이메일 로그인
+    ("app_user", "password_hash", "VARCHAR", None),
 ]
 
 
 def add_missing_columns(bind) -> None:
+    allow_email_only_users(bind)
     insp = inspect(bind)
     with bind.begin() as conn:
-        for table, column, sql_type in NEW_COLUMNS:
+        for table, column, sql_type, index in NEW_COLUMNS:
             if column not in {c["name"] for c in insp.get_columns(table)}:
                 conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {sql_type}"))
-                conn.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{table}_{column} ON {table} ({column})"))
+                if index:
+                    kind = "UNIQUE INDEX" if index == "unique" else "INDEX"
+                    conn.execute(text(f"CREATE {kind} IF NOT EXISTS ix_{table}_{column} ON {table} ({column})"))
+
+
+def allow_email_only_users(bind) -> None:
+    """처음 만든 app_user 표는 kakao_id가 꼭 있어야 했어요. 이메일 회원은 kakao_id가 없으니 빈칸을 허락해요."""
+    insp = inspect(bind)
+    if "app_user" not in insp.get_table_names():
+        return
+    kakao = next((c for c in insp.get_columns("app_user") if c["name"] == "kakao_id"), None)
+    if not kakao or kakao["nullable"]:
+        return
+    with bind.begin() as conn:
+        if bind.dialect.name != "sqlite":  # PostgreSQL(Supabase)은 한 줄이면 돼요
+            conn.execute(text("ALTER TABLE app_user ALTER COLUMN kakao_id DROP NOT NULL"))
+            return
+        # SQLite는 칸 설정을 못 바꿔서, 표를 새로 만들고 내용을 옮겨요.
+        from .models import User
+
+        for ix in insp.get_indexes("app_user"):
+            conn.execute(text(f"DROP INDEX IF EXISTS {ix['name']}"))
+        conn.execute(text("ALTER TABLE app_user RENAME TO app_user_old"))
+        User.__table__.create(conn)
+        cols = "id, kakao_id, nickname, created_at, last_login_at"
+        conn.execute(text(f"INSERT INTO app_user ({cols}) SELECT {cols} FROM app_user_old"))
+        conn.execute(text("DROP TABLE app_user_old"))
 
 
 def get_session():

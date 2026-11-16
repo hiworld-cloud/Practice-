@@ -59,6 +59,8 @@ input:focus, select:focus, textarea:focus, button:focus-visible, .card:focus-vis
 .lang-select select { width: auto; padding: 8px 10px; }
 .btn { border: 1px solid transparent; border-radius: 10px; padding: 9px 14px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
 .btn-primary { background: var(--accent); color: var(--accent-ink); width: 100%; justify-content: center; padding: 12px; }
+.btn-small { width: auto; padding: 9px 14px; }
+[hidden] { display: none !important; }
 .btn-primary:hover { filter: brightness(1.05); }
 .btn-ghost { background: transparent; border-color: var(--line); }
 .btn-ghost:hover { background: var(--accent-soft); }
@@ -67,6 +69,12 @@ input:focus, select:focus, textarea:focus, button:focus-visible, .card:focus-vis
 .btn-kakao:hover { filter: brightness(.97); }
 .auth-box { display: flex; align-items: center; gap: 6px; }
 .auth-name { font-size: .9rem; font-weight: 600; max-width: 9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.modal-small { width: min(420px, calc(100% - 24px)); }
+.modal-small .tabs { margin-bottom: 14px; }
+.field-note { font-size: .82rem; }
+.btn-wide { width: 100%; justify-content: center; padding: 12px; }
+.divider { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: .85rem; margin: 16px 0 12px; }
+.divider::before, .divider::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
 .login-gate { display: grid; gap: 12px; justify-items: start; padding: 8px 0; }
 .badge { background: var(--accent); color: var(--accent-ink); border-radius: 999px; font-size: .75rem; padding: 0 7px; min-width: 20px; text-align: center; }
 .icon-btn { border: 0; background: transparent; font-size: 1.6rem; line-height: 1; cursor: pointer; color: var(--muted); padding: 4px 8px; border-radius: 8px; }

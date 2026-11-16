@@ -25,7 +25,7 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
-from . import auth, db
+from . import auth, db, email_login
 from .auth import OptionalUserDep, UserDep
 from .models import Clinic, Reservation, Review, User
 from .seed import load_seed, seed
@@ -57,6 +57,7 @@ app.add_middleware(
     allow_headers=["Content-Type", "X-Guest-Id", "Authorization"],
 )
 app.include_router(auth.router)
+app.include_router(email_login.router)
 
 
 # ---------- 요청/응답 형태 ----------
