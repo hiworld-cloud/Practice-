@@ -6,7 +6,7 @@
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from sqlalchemy import JSON, BigInteger, Column, UniqueConstraint
+from sqlalchemy import JSON, BigInteger, Column, String, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -31,12 +31,17 @@ class Clinic(SQLModel, table=True):
 
 
 class User(SQLModel, table=True):
-    """카카오로 로그인한 회원. ("user"는 PostgreSQL 예약어라서 테이블 이름을 app_user로 해요.)"""
+    """회원. 카카오로 가입했거나 이메일로 가입했어요.
+    ("user"는 PostgreSQL 예약어라서 테이블 이름을 app_user로 해요.)"""
     __tablename__ = "app_user"
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    # 카카오 회원번호는 숫자가 커서(10자리 이상) BigInteger로 저장해요.
-    kakao_id: int = Field(sa_column=Column(BigInteger, unique=True, nullable=False, index=True))
+    # 카카오로 가입한 사람만 있어요. 회원번호는 숫자가 커서(10자리 이상) BigInteger로 저장해요.
+    kakao_id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, unique=True, nullable=True, index=True))
+    # 이메일로 가입한 사람만 있어요. 항상 소문자로 저장해요.
+    email: Optional[str] = Field(default=None, sa_column=Column(String(254), unique=True, nullable=True, index=True))
+    # 비밀번호 원문이 아니라 "알아볼 수 없게 바꾼 값"(해시)만 저장해요. passwords.py 참고
+    password_hash: Optional[str] = None
     nickname: str = ""
     created_at: datetime = Field(default_factory=_now)
     last_login_at: datetime = Field(default_factory=_now)

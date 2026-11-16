@@ -14,6 +14,8 @@
  *   cancelReservation(id)         DELETE /api/reservations/{id}
  *   me()                          GET    /api/auth/me   (로그인 안 했으면 null)
  *   loginUrl(돌아올주소)           카카오 로그인 시작 주소 (서버 모드만)
+ *   signup({email,password,nickname}) POST /api/auth/signup  (성공하면 바로 로그인)
+ *   login({email,password})       POST   /api/auth/login
  *   logout()                      저장해 둔 로그인 토큰 지우기
  *   loginError                    방금 로그인이 실패했으면 그 이유 (예: "access_denied")
  *
@@ -54,6 +56,8 @@
       loginError: null,
       async me() { return null; },
       loginUrl() { return null; },
+      async signup() { throw fail("server_only"); },
+      async login() { throw fail("server_only"); },
       logout() {},
       async listClinics() {
         return window.CLINICS.map(c => Object.assign({}, c, summary(c)));
@@ -122,6 +126,10 @@
         history.replaceState(null, "", location.pathname + location.search);
       }
     } catch (e) {}
+    function saveToken(value) {
+      token = value;
+      try { localStorage.setItem(TOKEN_KEY, value); } catch (e) {}
+    }
     function clearToken() {
       token = null;
       try { localStorage.removeItem(TOKEN_KEY); } catch (e) {}
@@ -160,6 +168,16 @@
         }
       },
       loginUrl: back => `${base}/api/auth/kakao/login?next=${enc(back)}`,
+      async signup(data) {
+        const res = await call("POST", "/api/auth/signup", data);
+        saveToken(res.token);
+        return res.user;
+      },
+      async login(data) {
+        const res = await call("POST", "/api/auth/login", data);
+        saveToken(res.token);
+        return res.user;
+      },
       logout: clearToken,
       listClinics: () => call("GET", "/api/clinics"),
       listReviews: id => call("GET", `/api/clinics/${enc(id)}/reviews`),
