@@ -42,20 +42,34 @@ def test_unknown_clinic_is_404(client):
     assert client.get("/api/clinics/nope").status_code == 404
 
 
-def test_add_review_updates_average_and_marks_mine(client, guest):
-    res = client.post("/api/clinics/c06/reviews", json={"rating": 4, "nick": "me", "text": "좋아요"}, headers=guest)
+def test_add_review_updates_average_and_marks_mine(client, login):
+    me = login(kakao_id=1001, nickname="재하")
+    res = client.post("/api/clinics/c06/reviews", json={"rating": 4, "text": "좋아요"}, headers=me)
     assert res.status_code == 201
+    assert res.json()["nick"] == "재하"  # 닉네임은 카카오 닉네임
     c06 = client.get("/api/clinics/c06").json()
     assert c06["count"] == 1 and c06["rating"] == 4.0
-    reviews = client.get("/api/clinics/c06/reviews", headers=guest).json()
+    reviews = client.get("/api/clinics/c06/reviews", headers=me).json()
     assert reviews[0]["mine"] is True
-    other = client.get("/api/clinics/c06/reviews", headers={"X-Guest-Id": "someone-else-01"}).json()
-    assert other[0]["mine"] is False
+    other = login(kakao_id=2002, nickname="남")
+    assert client.get("/api/clinics/c06/reviews", headers=other).json()[0]["mine"] is False
+    assert client.get("/api/clinics/c06/reviews").json()[0]["mine"] is False  # 로그인 안 해도 읽기는 가능
 
 
-def test_review_rejects_bad_rating_and_missing_guest(client, guest):
-    assert client.post("/api/clinics/c01/reviews", json={"rating": 6}, headers=guest).status_code == 422
-    assert client.post("/api/clinics/c01/reviews", json={"rating": 5}).status_code == 400
+def test_review_requires_login(client, guest):
+    res = client.post("/api/clinics/c01/reviews", json={"rating": 5}, headers=guest)
+    assert res.status_code == 401 and res.json()["detail"]["code"] == "login_required"
+    bad = client.post("/api/clinics/c01/reviews", json={"rating": 5}, headers={"Authorization": "Bearer fake.token"})
+    assert bad.status_code == 401 and bad.json()["detail"]["code"] == "invalid_token"
+
+
+def test_review_rejects_bad_rating_and_second_review(client, login):
+    me = login()
+    assert client.post("/api/clinics/c01/reviews", json={"rating": 6}, headers=me).status_code == 422
+    assert client.post("/api/clinics/c01/reviews", json={"rating": 5}, headers=me).status_code == 201
+    again = client.post("/api/clinics/c01/reviews", json={"rating": 1}, headers=me)
+    assert again.status_code == 409 and again.json()["detail"]["code"] == "already_reviewed"
+    assert client.post("/api/clinics/c02/reviews", json={"rating": 3}, headers=me).status_code == 201  # 다른 병원은 OK
 
 
 def test_reservation_flow(client, guest):

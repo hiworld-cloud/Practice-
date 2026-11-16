@@ -1,7 +1,7 @@
 (function () {
   const LANGS = ["ko", "en", "ja", "zh"];
   const LOCALES = { ko: "ko-KR", en: "en-US", ja: "ja-JP", zh: "zh-CN" };
-  const state = { lang: detectLang(), clinics: [], query: "", specialty: "", sort: "rating", openId: null, tab: "reserve" };
+  const state = { user: null, lang: detectLang(), clinics: [], query: "", specialty: "", sort: "rating", openId: null, tab: "reserve" };
 
   const $ = sel => document.querySelector(sel);
   const el = {
@@ -9,7 +9,8 @@
     search: $("#searchInput"), specialty: $("#specialtyFilter"), sort: $("#sortSelect"),
     lang: $("#langSelect"), modal: $("#clinicModal"), modalBody: $("#clinicModalBody"),
     resModal: $("#reservationsModal"), resList: $("#reservationsList"),
-    resBtn: $("#myReservationsBtn"), resCount: $("#reservationCount"), toast: $("#toast")
+    resBtn: $("#myReservationsBtn"), resCount: $("#reservationCount"), toast: $("#toast"),
+    authBox: $("#authBox")
   };
 
   /* ---------- 언어 ---------- */
@@ -37,6 +38,32 @@
     el.specialty.innerHTML = `<option value="">${esc(t("filter.all"))}</option>` +
       Object.keys(SPECIALTIES).map(k => `<option value="${k}">${esc(L(SPECIALTIES[k]))}</option>`).join("");
     el.specialty.value = state.specialty;
+    renderAuth();
+  }
+
+  /* ---------- 카카오 로그인 ---------- */
+  function startLogin() {
+    location.href = API.loginUrl(location.href.split("#")[0]);
+  }
+
+  function renderAuth() {
+    // 서버 없이(브라우저 모드) 열었을 때는 로그인이 없어요.
+    el.authBox.hidden = API.mode !== "server";
+    if (el.authBox.hidden) return;
+    el.authBox.innerHTML = state.user
+      ? `<span class="auth-name">${esc(t("auth.hello", { name: state.user.nickname }))}</span>
+         <button class="btn btn-ghost" type="button" data-logout>${esc(t("auth.logout"))}</button>`
+      : `<button class="btn btn-kakao" type="button" data-login>${esc(t("auth.login"))}</button>`;
+  }
+
+  async function loadUser() {
+    if (API.mode !== "server") return;
+    try { state.user = await API.me(); } catch (e) { state.user = null; }
+    renderAuth();
+    const errKey = { access_denied: "auth.canceled", kakao_not_configured: "auth.notReady" }[API.loginError] || "auth.failed";
+    if (API.loginError) toast(t(errKey), "error");
+    else if (state.user && sessionStorage.getItem("bb.justLoggedIn")) toast(t("auth.welcome", { name: state.user.nickname }));
+    try { sessionStorage.removeItem("bb.justLoggedIn"); } catch (e) {}
   }
 
   function setLang(lang) {
@@ -228,13 +255,24 @@
         }
       });
     } else if (state.tab === "rate") {
+      if (API.mode === "server" && !state.user) {
+        box.innerHTML = `
+          <div class="login-gate">
+            <p>${esc(t("auth.needLogin"))}</p>
+            <button class="btn btn-kakao" type="button" data-login>${esc(t("auth.login"))}</button>
+          </div>`;
+        return;
+      }
+      const nickField = API.mode === "server"
+        ? `<p class="muted">${esc(t("rate.writer", { name: state.user.nickname }))}</p>`
+        : `<label>${esc(t("rate.nickname"))}<input name="nick" maxlength="20" placeholder="guest"></label>`;
       box.innerHTML = `
         <form id="rateForm" class="form">
           <p class="muted">${esc(t("rate.label"))}</p>
           <div class="star-input" role="radiogroup" aria-label="${esc(t("rate.label"))}">
             ${[1, 2, 3, 4, 5].map(n => `<button type="button" role="radio" aria-checked="false" data-v="${n}" aria-label="${n}">★</button>`).join("")}
           </div>
-          <label>${esc(t("rate.nickname"))}<input name="nick" maxlength="20" placeholder="guest"></label>
+          ${nickField}
           <label>${esc(t("rate.comment"))}<textarea name="text" rows="3" maxlength="300"></textarea></label>
           <button class="btn btn-primary" type="submit">${esc(t("rate.submit"))}</button>
         </form>`;
@@ -255,9 +293,10 @@
         e.preventDefault();
         if (!value) { toast(t("rate.need"), "error"); return; }
         try {
-          await API.addReview(c.id, { rating: value, nick: form.nick.value.trim() || "guest", text: form.text.value.trim() });
+          await API.addReview(c.id, { rating: value, nick: (form.nick && form.nick.value.trim()) || "guest", text: form.text.value.trim() });
         } catch (err) {
           toast(errorText(err), "error");
+          if (err.code === "login_required" || err.code === "invalid_token") { state.user = null; renderAuth(); renderDetail(); }
           return;
         }
         toast(t("rate.done"));
@@ -308,7 +347,10 @@
 
   /* ---------- 오류 메시지 ---------- */
   function errorText(err) {
-    const map = { slot_taken: "reserve.taken", clinic_closed: "reserve.closed", network: "common.serverError" };
+    const map = {
+      slot_taken: "reserve.taken", clinic_closed: "reserve.closed", network: "common.serverError",
+      login_required: "auth.needLogin", invalid_token: "auth.needLogin", already_reviewed: "rate.already"
+    };
     return t(map[err && err.code] || "reserve.invalid");
   }
 
@@ -326,6 +368,19 @@
 
   /* ---------- 이벤트 ---------- */
   function bind() {
+    // 로그인 버튼은 머리말과 리뷰 탭 두 곳에 있어서 문서 전체에서 한 번에 처리해요.
+    document.addEventListener("click", e => {
+      if (e.target.closest("[data-login]")) {
+        try { sessionStorage.setItem("bb.justLoggedIn", "1"); } catch (err) {}
+        startLogin();
+      } else if (e.target.closest("[data-logout]")) {
+        API.logout();
+        state.user = null;
+        renderAuth();
+        if (el.modal.open && state.openId) renderDetail();
+        toast(t("auth.loggedOut"));
+      }
+    });
     el.lang.addEventListener("change", e => setLang(e.target.value));
     el.search.addEventListener("input", e => { state.query = e.target.value; renderList(); });
     el.specialty.addEventListener("change", e => { state.specialty = e.target.value; renderList(); });
@@ -375,6 +430,7 @@
     if (slow) { clearTimeout(slow); clearTimeout(toastTimer); el.toast.className = "toast"; }
     renderList();
     if (!state.clinics.length && API.mode === "server") toast(t("common.serverError"), "error");
+    await loadUser();
     updateReservationBadge();
   }
   init();

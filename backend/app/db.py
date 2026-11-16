@@ -9,6 +9,7 @@ Supabase가 주는 주소(postgresql:// 또는 postgres://)를 그대로 붙여 
 import os
 from pathlib import Path
 
+from sqlalchemy import inspect, text
 from sqlmodel import Session, SQLModel, create_engine
 
 DEFAULT_DB = Path(__file__).resolve().parent.parent / "beautybook.db"
@@ -35,7 +36,25 @@ else:
 def create_tables(bind=None) -> None:
     from . import models  # noqa: F401  (테이블 정의를 등록하기 위해 import)
 
-    SQLModel.metadata.create_all(bind or engine)
+    bind = bind or engine
+    SQLModel.metadata.create_all(bind)
+    add_missing_columns(bind)
+
+
+# create_all()은 "없는 테이블"만 만들고, 이미 있는 테이블에 새 칸(컬럼)을 추가하지는 않아요.
+# 그래서 Supabase에 이미 있는 테이블에 새로 생긴 칸을 여기서 직접 추가해요. (아주 간단한 마이그레이션)
+NEW_COLUMNS = [
+    ("review", "user_id", "INTEGER"),  # 4단계: 카카오 로그인 회원 번호
+]
+
+
+def add_missing_columns(bind) -> None:
+    insp = inspect(bind)
+    with bind.begin() as conn:
+        for table, column, sql_type in NEW_COLUMNS:
+            if column not in {c["name"] for c in insp.get_columns(table)}:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {sql_type}"))
+                conn.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{table}_{column} ON {table} ({column})"))
 
 
 def get_session():

@@ -3,3 +3,4 @@ sqlmodel==0.0.48
 uvicorn==0.54.0
 tzdata==2026.6  # 윈도우에는 시간대(Asia/Seoul) 정보가 없어서 필요
 psycopg[binary]==3.3.8  # PostgreSQL(Supabase) 연결용 드라이버
+httpx==0.28.1  # 카카오 서버에 요청 보내기 (로그인)

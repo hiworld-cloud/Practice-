@@ -4,8 +4,8 @@
   - http://localhost:8000          → 사이트 (서버 모드로 동작)
   - http://localhost:8000/docs     → API 문서 (직접 눌러 보며 테스트 가능)
 
-아직 로그인이 없어서, 브라우저마다 만든 임의의 ID(X-Guest-Id 헤더)로 "내 예약"을 구분합니다.
-4단계(카카오 로그인)에서 이 부분을 진짜 회원 ID로 바꿉니다.
+리뷰 쓰기는 카카오로 로그인한 사람만 할 수 있어요 (auth.py 참고).
+예약은 아직 브라우저마다 만든 임의의 ID(X-Guest-Id 헤더)로 "내 예약"을 구분합니다.
 """
 import os
 import re
@@ -25,8 +25,9 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
-from . import db
-from .models import Clinic, Reservation, Review
+from . import auth, db
+from .auth import OptionalUserDep, UserDep
+from .models import Clinic, Reservation, Review, User
 from .seed import load_seed, seed
 
 KST = ZoneInfo("Asia/Seoul")
@@ -53,16 +54,17 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins,
     allow_methods=["GET", "POST", "DELETE"],
-    allow_headers=["Content-Type", "X-Guest-Id"],
+    allow_headers=["Content-Type", "X-Guest-Id", "Authorization"],
 )
+app.include_router(auth.router)
 
 
 # ---------- 요청/응답 형태 ----------
 
 class ReviewIn(BaseModel):
     rating: int = Field(ge=1, le=5)
-    nick: str = Field(default="guest", max_length=20)
     text: str = Field(default="", max_length=300)
+    # 닉네임은 이제 카카오 닉네임을 써요. (예전 화면이 nick을 보내도 무시해요)
 
 
 class ReservationIn(BaseModel):
@@ -93,10 +95,10 @@ def clinic_out(c: Clinic, rating: float, count: int) -> dict[str, Any]:
     }
 
 
-def review_out(r: Review, guest_id: Optional[str]) -> dict[str, Any]:
+def review_out(r: Review, user: Optional[User]) -> dict[str, Any]:
     return {
         "id": r.id, "rating": r.rating, "nick": r.nick, "text": r.text,
-        "mine": bool(guest_id and r.guest_id == guest_id),
+        "mine": bool(user and r.user_id == user.id),
         "createdAt": r.created_at.isoformat(),
     }
 
@@ -170,23 +172,29 @@ def get_clinic(clinic_id: str, session: SessionDep):
 
 
 @app.get("/api/clinics/{clinic_id}/reviews")
-def list_reviews(clinic_id: str, session: SessionDep, x_guest_id: Annotated[Optional[str], Header()] = None):
+def list_reviews(clinic_id: str, session: SessionDep, user: OptionalUserDep):
     get_clinic_or_404(session, clinic_id)
     rows = session.exec(
         select(Review).where(Review.clinic_id == clinic_id).order_by(Review.created_at.desc(), Review.id.desc())
     ).all()
-    return [review_out(r, x_guest_id) for r in rows]
+    return [review_out(r, user) for r in rows]
 
 
 @app.post("/api/clinics/{clinic_id}/reviews", status_code=201)
-def add_review(clinic_id: str, body: ReviewIn, session: SessionDep, guest_id: GuestDep):
+def add_review(clinic_id: str, body: ReviewIn, session: SessionDep, user: UserDep):
+    """리뷰 쓰기: 카카오로 로그인한 사람만, 한 병원에 한 번만."""
     get_clinic_or_404(session, clinic_id)
-    r = Review(clinic_id=clinic_id, rating=body.rating, nick=body.nick.strip() or "guest",
-               text=body.text.strip(), guest_id=guest_id)
+    already = session.exec(
+        select(Review.id).where(Review.clinic_id == clinic_id, Review.user_id == user.id)
+    ).first()
+    if already:
+        raise HTTPException(409, detail={"code": "already_reviewed"})
+    r = Review(clinic_id=clinic_id, rating=body.rating, nick=user.nickname or "카카오회원",
+               text=body.text.strip(), user_id=user.id)
     session.add(r)
     session.commit()
     session.refresh(r)
-    return review_out(r, guest_id)
+    return review_out(r, user)
 
 
 @app.get("/api/clinics/{clinic_id}/taken-slots")
