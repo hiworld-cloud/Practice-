@@ -48,6 +48,7 @@ NEW_COLUMNS = [
     ("review", "user_id", "INTEGER", "index"),  # 4단계: 카카오 로그인 회원 번호
     ("app_user", "email", "VARCHAR(254)", "unique"),  # 이메일 로그인
     ("app_user", "password_hash", "VARCHAR", None),
+    ("app_user", "email_verified", "BOOLEAN NOT NULL DEFAULT FALSE", None),  # 이메일 인증
 ]
 
 

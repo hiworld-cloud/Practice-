@@ -47,52 +47,125 @@
     location.href = API.loginUrl(location.href.split("#")[0]);
   }
 
-  /* 로그인 / 회원가입 창 */
+  /* 로그인 / 회원가입 / 비밀번호 찾기 / 새 비밀번호 창
+   *   login  : 이메일 + 비밀번호
+   *   signup : 이메일 + 비밀번호 + 닉네임 → 인증 메일 발송
+   *   forgot : 이메일만 → 비밀번호 재설정 링크 발송
+   *   reset  : 새 비밀번호만 (메일 속 재설정 링크로 들어왔을 때) */
   let authMode = "login";
+  let notice = null; // { key, vars, resend } 창 위쪽 안내 문구
+  const byId = id => document.getElementById(id);
+  const AUTH_TITLE = { login: "auth.title", signup: "auth.signupTitle", forgot: "auth.forgotTitle", reset: "auth.resetTitle" };
+  const AUTH_SUBMIT = { login: "auth.tabLogin", signup: "auth.tabSignup", forgot: "auth.sendReset", reset: "auth.changePassword" };
+
   function setAuthMode(mode) {
     authMode = mode;
     const f = el.loginForm;
-    el.loginModal.querySelectorAll("[data-auth-mode]").forEach(b => {
+    const is = (...modes) => modes.includes(mode);
+    el.loginModal.querySelectorAll(".tab[data-auth-mode]").forEach(b => {
       const on = b.dataset.authMode === mode;
       b.classList.toggle("active", on);
       b.setAttribute("aria-selected", String(on));
     });
-    document.getElementById("loginTitle").textContent = t(mode === "login" ? "auth.title" : "auth.signupTitle");
-    document.getElementById("nicknameField").hidden = mode === "login";
-    document.getElementById("passwordHint").hidden = mode === "login";
-    f.nickname.required = mode === "signup";
-    f.password.autocomplete = mode === "login" ? "current-password" : "new-password";
-    document.getElementById("loginSubmit").textContent = t(mode === "login" ? "auth.tabLogin" : "auth.tabSignup");
+    byId("loginTitle").textContent = t(AUTH_TITLE[mode]);
+    byId("authTabs").hidden = !is("login", "signup");
+    byId("emailField").hidden = is("reset");
+    byId("passwordField").hidden = is("forgot");
+    byId("passwordLabel").textContent = t(is("reset") ? "auth.newPassword" : "auth.password");
+    byId("passwordHint").hidden = !is("signup", "reset");
+    byId("nicknameField").hidden = !is("signup");
+    byId("forgotLink").hidden = !is("login");
+    byId("backToLogin").hidden = !is("forgot", "reset");
+    byId("kakaoArea").hidden = !is("login", "signup");
+    f.nickname.required = is("signup");
+    f.password.autocomplete = is("login") ? "current-password" : "new-password";
+    byId("loginSubmit").textContent = t(AUTH_SUBMIT[mode]);
+    renderNotice();
+  }
+  function showNotice(key, vars, resend) {
+    notice = key ? { key, vars, resend: !!resend } : null;
+    renderNotice();
+  }
+  function renderNotice() {
+    byId("authNotice").hidden = !notice;
+    if (!notice) return;
+    byId("authNoticeText").textContent = t(notice.key, notice.vars);
+    byId("resendBtn").hidden = !notice.resend;
   }
   function openLogin(mode) {
     el.loginForm.reset();
+    notice = null;
     setAuthMode(mode || "login");
-    el.loginModal.showModal();
-    el.loginForm.email.focus();
+    if (!el.loginModal.open) el.loginModal.showModal();
+    (mode === "reset" ? el.loginForm.password : el.loginForm.email).focus();
+  }
+  function loggedIn(user, msgKey) {
+    state.user = user;
+    if (el.loginModal.open) el.loginModal.close();
+    renderAuth();
+    if (el.modal.open && state.openId) renderDetail();
+    toast(t(msgKey, { name: user.nickname }));
   }
   async function submitLogin(e) {
     e.preventDefault();
     const f = el.loginForm;
-    const data = { email: f.email.value.trim(), password: f.password.value };
-    if (authMode === "signup") data.nickname = f.nickname.value.trim();
-    if (!data.email || !data.password || (authMode === "signup" && !data.nickname)) {
+    const email = f.email.value.trim();
+    const password = f.password.value;
+    const nickname = f.nickname.value.trim();
+    const missing = (authMode !== "reset" && !email) || (authMode !== "forgot" && !password) ||
+      (authMode === "signup" && !nickname);
+    if (missing) {
       toast(t("reserve.invalid"), "error");
       return;
     }
-    const btn = document.getElementById("loginSubmit");
+    const btn = byId("loginSubmit");
     btn.disabled = true;
     try {
-      state.user = authMode === "login" ? await API.login(data) : await API.signup(data);
+      if (authMode === "login") {
+        loggedIn(await API.login({ email, password }), "auth.welcome");
+      } else if (authMode === "signup") {
+        await API.signup({ email, password, nickname });
+        // 가입 완료 → 로그인 탭으로 돌아가서 "메일을 확인해 주세요" 안내
+        setAuthMode("login");
+        f.password.value = "";
+        showNotice("auth.verifySent", { email }, true);
+      } else if (authMode === "forgot") {
+        await API.requestReset(email);
+        showNotice("auth.resetSent", { email });
+      } else if (authMode === "reset") {
+        const user = await API.resetPassword(API.resetToken, password);
+        API.resetToken = null;
+        loggedIn(user, "auth.passwordChanged");
+      }
     } catch (err) {
-      toast(errorText(err), "error");
-      return;
+      if (err.code === "email_not_verified") showNotice("auth.notVerified", { email }, true);
+      else if (err.code === "invalid_link") { setAuthMode("forgot"); showNotice("auth.badResetLink"); }
+      else toast(errorText(err), "error");
     } finally {
       btn.disabled = false;
     }
-    el.loginModal.close();
-    renderAuth();
-    if (el.modal.open && state.openId) renderDetail();
-    toast(t(authMode === "login" ? "auth.welcome" : "auth.signedUp", { name: state.user.nickname }));
+  }
+  async function resendVerify() {
+    const email = el.loginForm.email.value.trim();
+    if (!email) { toast(t("auth.badEmail"), "error"); return; }
+    try { await API.resendVerify(email); } catch (err) { toast(errorText(err), "error"); return; }
+    toast(t("auth.resent"));
+  }
+
+  /* 메일 속 링크로 들어온 경우 */
+  async function handleMailLinks() {
+    if (API.verifyToken) {
+      try {
+        const user = await API.verifyEmail(API.verifyToken);
+        if (user) loggedIn(user, "auth.verified");
+        else { openLogin("login"); showNotice("auth.alreadyVerified"); }
+      } catch (err) {
+        openLogin("login");
+        showNotice(err.code === "invalid_link" ? "auth.badVerifyLink" : "common.serverError", null, err.code === "invalid_link");
+      }
+    } else if (API.resetToken) {
+      openLogin("reset");
+    }
   }
 
   function renderAuth() {
@@ -113,6 +186,7 @@
     if (API.loginError) toast(t(errKey), "error");
     else if (state.user && sessionStorage.getItem("bb.justLoggedIn")) toast(t("auth.welcome", { name: state.user.nickname }));
     try { sessionStorage.removeItem("bb.justLoggedIn"); } catch (e) {}
+    await handleMailLinks();
   }
 
   function setLang(lang) {
@@ -401,7 +475,8 @@
       slot_taken: "reserve.taken", clinic_closed: "reserve.closed", network: "common.serverError",
       login_required: "auth.needLogin", invalid_token: "auth.needLogin", already_reviewed: "rate.already",
       invalid_email: "auth.badEmail", weak_password: "auth.passwordRule", nickname_required: "auth.needNickname",
-      email_taken: "auth.emailTaken", wrong_credentials: "auth.wrong", too_many_attempts: "auth.locked"
+      email_taken: "auth.emailTaken", wrong_credentials: "auth.wrong", too_many_attempts: "auth.locked",
+      email_not_verified: "auth.notVerifiedShort", invalid_link: "auth.badResetLink"
     };
     return t(map[err && err.code] || "reserve.invalid");
   }
@@ -427,7 +502,10 @@
       } else if (e.target.closest("[data-kakao]")) {
         startKakaoLogin();
       } else if (e.target.closest("[data-auth-mode]")) {
+        notice = null;
         setAuthMode(e.target.closest("[data-auth-mode]").dataset.authMode);
+      } else if (e.target.closest("[data-resend]")) {
+        resendVerify();
       } else if (e.target.closest("[data-logout]")) {
         API.logout();
         state.user = null;
@@ -435,6 +513,10 @@
         if (el.modal.open && state.openId) renderDetail();
         toast(t("auth.loggedOut"));
       }
+    });
+    // 이미 열려 있는 탭에 메일 속 링크를 붙여 넣으면 # 뒤만 바뀌고 페이지가 다시 안 읽혀요. 그럴 때 새로 읽어요.
+    window.addEventListener("hashchange", () => {
+      if (/(verify|reset)_token=/.test(location.hash)) location.reload();
     });
     el.lang.addEventListener("change", e => setLang(e.target.value));
     el.search.addEventListener("input", e => { state.query = e.target.value; renderList(); });

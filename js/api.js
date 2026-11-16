@@ -14,8 +14,13 @@
  *   cancelReservation(id)         DELETE /api/reservations/{id}
  *   me()                          GET    /api/auth/me   (로그인 안 했으면 null)
  *   loginUrl(돌아올주소)           카카오 로그인 시작 주소 (서버 모드만)
- *   signup({email,password,nickname}) POST /api/auth/signup  (성공하면 바로 로그인)
- *   login({email,password})       POST   /api/auth/login
+ *   signup({email,password,nickname}) POST /api/auth/signup  (인증 메일을 보내요. 로그인은 아직)
+ *   login({email,password})       POST   /api/auth/login  (메일 인증 전이면 "email_not_verified")
+ *   verifyEmail(token)            POST   /api/auth/verify-email  (성공하면 로그인한 사람, 이미 인증했으면 null)
+ *   resendVerify(email)           POST   /api/auth/verify-email/resend
+ *   requestReset(email)           POST   /api/auth/password-reset/request
+ *   resetPassword(token,password) POST   /api/auth/password-reset/confirm  (성공하면 바로 로그인)
+ *   verifyToken / resetToken      메일 속 링크로 들어왔으면 그 링크의 토큰 (아니면 null)
  *   logout()                      저장해 둔 로그인 토큰 지우기
  *   loginError                    방금 로그인이 실패했으면 그 이유 (예: "access_denied")
  *
@@ -54,10 +59,16 @@
     return {
       mode: "local",
       loginError: null,
+      verifyToken: null,
+      resetToken: null,
       async me() { return null; },
       loginUrl() { return null; },
       async signup() { throw fail("server_only"); },
       async login() { throw fail("server_only"); },
+      async verifyEmail() { throw fail("server_only"); },
+      async resendVerify() { throw fail("server_only"); },
+      async requestReset() { throw fail("server_only"); },
+      async resetPassword() { throw fail("server_only"); },
       logout() {},
       async listClinics() {
         return window.CLINICS.map(c => Object.assign({}, c, summary(c)));
@@ -114,15 +125,21 @@
     const TOKEN_KEY = "bb.token";
     let token = null;
     let loginError = null;
+    // 메일 속 링크(#verify_token=... / #reset_token=...)로 들어온 경우의 토큰
+    let verifyToken = null;
+    let resetToken = null;
     try { token = localStorage.getItem(TOKEN_KEY); } catch (e) {}
     try {
       const h = new URLSearchParams(location.hash.slice(1));
-      if (h.get("bb_token") || h.get("login_error")) {
+      if (h.get("bb_token") || h.get("login_error") || h.get("verify_token") || h.get("reset_token")) {
         if (h.get("bb_token")) {
           token = h.get("bb_token");
           try { localStorage.setItem(TOKEN_KEY, token); } catch (e) {}
         }
         loginError = h.get("login_error");
+        verifyToken = h.get("verify_token");
+        resetToken = h.get("reset_token");
+        // 주소창에서 토큰을 지워요 (화면을 캡처하거나 주소를 공유해도 새지 않게)
         history.replaceState(null, "", location.pathname + location.search);
       }
     } catch (e) {}
@@ -168,13 +185,24 @@
         }
       },
       loginUrl: back => `${base}/api/auth/kakao/login?next=${enc(back)}`,
-      async signup(data) {
-        const res = await call("POST", "/api/auth/signup", data);
+      verifyToken,
+      resetToken,
+      signup: data => call("POST", "/api/auth/signup", data),
+      async login(data) {
+        const res = await call("POST", "/api/auth/login", data);
         saveToken(res.token);
         return res.user;
       },
-      async login(data) {
-        const res = await call("POST", "/api/auth/login", data);
+      async verifyEmail(t) {
+        const res = await call("POST", "/api/auth/verify-email", { token: t });
+        if (!res.token) return null; // 이미 인증한 링크
+        saveToken(res.token);
+        return res.user;
+      },
+      resendVerify: email => call("POST", "/api/auth/verify-email/resend", { email }),
+      requestReset: email => call("POST", "/api/auth/password-reset/request", { email }),
+      async resetPassword(t, password) {
+        const res = await call("POST", "/api/auth/password-reset/confirm", { token: t, password });
         saveToken(res.token);
         return res.user;
       },

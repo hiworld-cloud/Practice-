@@ -11,7 +11,8 @@ backend/
 │  ├─ main.py        API 주소(라우트)와 예약 검증 규칙
 │  ├─ models.py      DB 테이블: Clinic, Review, Reservation, User
 │  ├─ auth.py        카카오 로그인 + 로그인 토큰
-│  ├─ email_login.py 이메일 + 비밀번호 회원가입·로그인
+│  ├─ email_login.py 이메일 + 비밀번호 회원가입·로그인, 이메일 인증, 비밀번호 찾기
+│  ├─ mailer.py      메일 보내기 (Resend)
 │  ├─ db.py          DB 연결 (기본은 SQLite 파일, DATABASE_URL이 있으면 PostgreSQL)
 │  ├─ seed.py        샘플 병원·리뷰를 DB에 넣는 스크립트
 │  ├─ seed_data.json 샘플 병원 데이터 (가상)
@@ -158,8 +159,12 @@ PostgreSQL에서도 확인하려면 **테스트용** DB 주소를 `TEST_DATABASE
 | GET | `/api/auth/kakao/login?next=돌아갈주소` | 카카오 로그인 화면으로 이동 |
 | GET | `/api/auth/kakao/callback` | 카카오가 로그인 후 돌려보내는 주소 (카카오에 등록) |
 | GET | `/api/auth/me` | 지금 로그인한 사람 `{id, nickname}` |
-| POST | `/api/auth/signup` | 이메일 회원가입 `{email, password, nickname}` → `{token, user}` |
-| POST | `/api/auth/login` | 이메일 로그인 `{email, password}` → `{token, user}` |
+| POST | `/api/auth/signup` | 이메일 회원가입 `{email, password, nickname}` → 인증 메일 발송 `{verify_sent, email}` (로그인은 아직) |
+| POST | `/api/auth/login` | 이메일 로그인 `{email, password}` → `{token, user}` · 인증 전이면 403 `email_not_verified` |
+| POST | `/api/auth/verify-email` | 메일 속 인증 링크의 `{token}` → 인증 완료 + `{token, user}` (이미 인증했으면 `{already: true}`) |
+| POST | `/api/auth/verify-email/resend` | 인증 메일 다시 보내기 `{email}` → 항상 `{ok: true}` |
+| POST | `/api/auth/password-reset/request` | 비밀번호 재설정 링크 보내기 `{email}` → 항상 `{ok: true}` |
+| POST | `/api/auth/password-reset/confirm` | 새 비밀번호 `{token, password}` → `{token, user}` |
 
 예약할 때 서버가 확인하는 것: 휴진일, 진료 시간 안의 30분 단위 시간, 오늘~60일 이내, 이미 지난 시간, 그 병원의 시술인지,
 그리고 **같은 시간 중복 예약**(DB 제약으로 막아서 동시에 눌러도 한 명만 성공)입니다.
@@ -181,7 +186,28 @@ PostgreSQL에서도 확인하려면 **테스트용** DB 주소를 `TEST_DATABASE
 - 이메일은 소문자로 저장하고 같은 이메일로 두 번 가입할 수 없어요.
 - 같은 이메일로 15분 안에 5번 틀리면 15분 동안 막아요. (서버 메모리에 세기 때문에 서버가 다시 켜지면 초기화돼요.)
 - 로그인 실패 메시지는 "이메일 또는 비밀번호가 맞지 않아요" 하나라서, 가입 여부를 알아낼 수 없어요.
-- **아직 없는 것**: 이메일 인증, 비밀번호 찾기. 메일을 보내는 서비스(예: Resend, SendGrid)가 필요해서 다음 단계로 남겨 뒀어요.
+
+### 이메일 인증 + 비밀번호 찾기
+
+메일은 [Resend](https://resend.com)로 보내요 (`app/mailer.py`, 무료: 하루 100통 · 한 달 3,000통).
+
+- **가입하면** 바로 로그인되지 않고 인증 메일이 가요. 메일 속 링크(`화면주소#verify_token=...`, 24시간 유효)를 누르면
+  화면이 `/api/auth/verify-email`을 불러서 인증 완료 + 로그인돼요. 인증 전에 로그인하면 "인증 메일 다시 보내기" 버튼이 나와요.
+- **비밀번호를 잊으면** "비밀번호를 잊으셨나요?" → 이메일 입력 → 재설정 링크(`화면주소#reset_token=...`)가 메일로 가요.
+  **원래 비밀번호는 보내지 않아요.** 해시만 저장하니까 우리도 모르고, 개인정보보호법상 비밀번호는 되돌릴 수 없게 저장해야 해요.
+  링크는 30분 동안 **한 번만** 쓸 수 있어요 (토큰 안에 지금 비밀번호 해시의 지문을 넣어서, 비밀번호가 바뀌면 링크가 무효가 돼요).
+- 재설정 링크로 비밀번호를 바꾸면 이메일 인증도 같이 끝나고, 5번 틀려서 잠긴 것도 풀려요.
+- 가입 여부를 알아낼 수 없게, 가입 안 된 이메일로 요청해도 똑같이 "보냈어요"라고 답해요.
+- 같은 이메일로는 1분에 한 번만 메일을 보내요 (메일 폭탄 방지).
+- 링크 토큰은 `SECRET_KEY`로 서명돼 있어서 고칠 수 없고, 로그인 토큰으로 쓸 수도 없어요 (용도가 달라요).
+- 이 기능 전에 이메일로 가입한 회원은 "미인증" 상태가 돼요. 로그인할 때 나오는 "인증 메일 다시 보내기"로 인증하면 돼요.
+
+`RESEND_API_KEY`가 없으면 메일을 보내지 않고 **서버 터미널에 메일 내용과 링크를 찍어요.** 내 컴퓨터에서는 그 링크를
+브라우저에 붙여 넣어서 연습하면 돼요.
+
+> ⚠️ 도메인을 아직 등록하지 않았으면(`MAIL_FROM`이 `onboarding@resend.dev`) Resend는 **Resend에 가입한 내 이메일로만** 보내 줘요.
+> 다른 사람 주소로 보내면 Render Logs에 `메일 발송 실패 403 ... only send testing emails to your own email`이 찍혀요.
+> .com 도메인을 사서 Resend의 **Domains**에 등록한 뒤 `MAIL_FROM`을 `BeautyBook <no-reply@내도메인.com>`으로 바꾸면 누구에게나 보낼 수 있어요.
 
 카카오로 가입한 사람과 이메일로 가입한 사람은 이메일이 같아도 서로 다른 회원이에요.
 
@@ -200,7 +226,9 @@ PostgreSQL에서도 확인하려면 **테스트용** DB 주소를 `TEST_DATABASE
 | `KAKAO_CLIENT_SECRET` | (없음) | 카카오 앱의 Client Secret 코드 (카카오에서 켜 두었으면 꼭 필요) |
 | `KAKAO_REDIRECT_URI` | `http://localhost:8000/api/auth/kakao/callback` | 카카오에 등록한 Redirect URI와 똑같이 |
 | `SECRET_KEY` | (켤 때마다 새로 생성) | 로그인 토큰 서명용 비밀값. 배포 서버에는 꼭 넣기 (Render가 자동 생성) |
-| `FRONTEND_URL` | `/` | 로그인 후 돌아갈 기본 화면 주소 |
+| `FRONTEND_URL` | `/` | 로그인 후 돌아갈 기본 화면 주소. 메일 속 링크도 이 주소로 가요 (없으면 이 서버 주소) |
+| `RESEND_API_KEY` | (없음) | Resend API 키 (`re_`로 시작). 없으면 메일 대신 서버 로그에 링크를 찍어요 |
+| `MAIL_FROM` | `BeautyBook <onboarding@resend.dev>` | 보내는 사람. 도메인 등록 후 `BeautyBook <no-reply@내도메인.com>` |
 | `HIRA_SERVICE_KEY` | (없음) | 공공데이터포털 인증키(Decoding). `backend/.env`에 적으면 불러오기 스크립트가 읽어요 |
 
 ## 프론트와 연결되는 방식

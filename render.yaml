@@ -29,3 +29,8 @@ services:
         value: https://hiworld-cloud.github.io/Practice-/
       - key: SECRET_KEY          # 로그인 토큰 서명용 비밀값. Render가 무작위로 만들어 줘요
         generateValue: true
+      # ---- 이메일 인증 + 비밀번호 찾기 (Resend로 메일 보내기) ----
+      - key: RESEND_API_KEY      # Resend > API Keys 에서 만든 키 (re_ 로 시작). Render 화면에서 붙여 넣기
+        sync: false
+      - key: MAIL_FROM           # 보내는 사람. 도메인을 등록하면 "BeautyBook <no-reply@내도메인.com>" 으로 바꿔요
+        value: BeautyBook <onboarding@resend.dev>
