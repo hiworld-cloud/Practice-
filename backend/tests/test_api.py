@@ -114,3 +114,23 @@ def test_site_is_served_in_server_mode(client):
     assert client.get("/js/config.js").text.strip() == 'window.BEAUTYBOOK_API_BASE = "";'
     assert client.get("/js/app.js").status_code == 200
     assert client.get("/backend/beautybook.db").status_code == 404
+    assert "개인정보처리방침" in client.get("/privacy.html").text
+
+
+def test_old_reservations_are_deleted_after_a_year(client):
+    from sqlmodel import Session, select
+
+    from app import db
+    from app.main import delete_old_reservations
+    from app.models import Reservation
+
+    today = datetime.now(KST).date()
+    with Session(db.engine) as s:
+        for i, days in enumerate((400, 366, 300)):
+            s.add(Reservation(clinic_id="c01", guest_id="guest-test-0001", name="홍길동", phone="010",
+                              procedure="doubleEyelid", date=(today - timedelta(days=days)).isoformat(),
+                              time=f"1{i}:00"))
+        s.commit()
+        assert delete_old_reservations(s) == 2
+        left = s.exec(select(Reservation)).all()
+        assert [r.date for r in left] == [(today - timedelta(days=300)).isoformat()]

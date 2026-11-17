@@ -99,7 +99,12 @@ window.I18N = {
     "common.serverError": "서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.",
     "common.waking": "서버를 깨우는 중이에요. 처음 한 번은 1분 정도 걸릴 수 있어요…",
     "weekday.closed": "{d} 휴진",
-    "footer.notice": "이 사이트는 연습용 예시입니다. 모든 병원 정보는 가상의 샘플 데이터이며, 별점과 예약은 이 브라우저에만 저장됩니다."
+    "footer.notice": "이 사이트는 연습용 예시입니다. 병원 정보는 공공데이터와 가상 샘플이며, 예약은 실제 병원에 전달되지 않습니다.",
+    "footer.privacy": "개인정보처리방침",
+    "auth.agree": "만 14세 이상이며, 개인정보처리방침에 동의해요",
+    "auth.readPrivacy": "개인정보처리방침 읽어 보기",
+    "auth.agreeRequired": "만 14세 이상인지와 개인정보처리방침 동의를 체크해 주세요.",
+    "auth.kakaoAgree": "카카오로 계속하면 만 14세 이상이며 개인정보처리방침에 동의한 것으로 봐요."
   },
   en: {
     "nav.myReservations": "My bookings",
@@ -200,7 +205,12 @@ window.I18N = {
     "common.serverError": "Could not reach the server. Please try again shortly.",
     "common.waking": "Waking up the server. The first load can take up to a minute…",
     "weekday.closed": "Closed {d}",
-    "footer.notice": "This is a practice demo. All clinics are fictional sample data, and ratings and bookings are stored only in this browser."
+    "footer.notice": "This is a practice demo. Clinic data comes from public records and fictional samples, and bookings are not sent to real clinics.",
+    "footer.privacy": "Privacy Policy",
+    "auth.agree": "I am 14 or older and agree to the Privacy Policy",
+    "auth.readPrivacy": "Read the Privacy Policy (Korean)",
+    "auth.agreeRequired": "Please confirm you are 14 or older and agree to the Privacy Policy.",
+    "auth.kakaoAgree": "By continuing with Kakao, you confirm you are 14 or older and agree to the Privacy Policy."
   },
   ja: {
     "nav.myReservations": "マイ予約",
@@ -301,7 +311,12 @@ window.I18N = {
     "common.serverError": "サーバーに接続できませんでした。しばらくしてから再度お試しください。",
     "common.waking": "サーバーを起動しています。初回は1分ほどかかることがあります…",
     "weekday.closed": "{d}休診",
-    "footer.notice": "このサイトは練習用のデモです。クリニック情報はすべて架空のサンプルで、評価と予約はこのブラウザにのみ保存されます。"
+    "footer.notice": "このサイトは練習用のデモです。クリニック情報は公共データと架空のサンプルで、予約は実際のクリニックには送られません。",
+    "footer.privacy": "プライバシーポリシー",
+    "auth.agree": "14歳以上で、プライバシーポリシーに同意します",
+    "auth.readPrivacy": "プライバシーポリシーを読む（韓国語）",
+    "auth.agreeRequired": "14歳以上であることとプライバシーポリシーへの同意にチェックしてください。",
+    "auth.kakaoAgree": "カカオで続けると、14歳以上でプライバシーポリシーに同意したものとみなします。"
   },
   zh: {
     "nav.myReservations": "我的预约",
@@ -402,7 +417,12 @@ window.I18N = {
     "common.serverError": "无法连接服务器，请稍后再试。",
     "common.waking": "正在唤醒服务器，首次加载可能需要约一分钟…",
     "weekday.closed": "{d}休诊",
-    "footer.notice": "本网站为练习用示例。所有医院信息均为虚构的示例数据，评分和预约仅保存在此浏览器中。"
+    "footer.notice": "本网站为练习用示例。医院信息来自公共数据和虚构示例，预约不会发送给真实医院。",
+    "footer.privacy": "隐私政策",
+    "auth.agree": "我已满14岁并同意隐私政策",
+    "auth.readPrivacy": "阅读隐私政策（韩语）",
+    "auth.agreeRequired": "请确认已满14岁并同意隐私政策。",
+    "auth.kakaoAgree": "使用Kakao继续即表示您已满14岁并同意隐私政策。"
   }
 };
 

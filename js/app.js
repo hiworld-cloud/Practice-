@@ -76,6 +76,8 @@
     byId("passwordLabel").textContent = t(is("reset") ? "auth.newPassword" : "auth.password");
     byId("passwordHint").hidden = !is("signup", "reset");
     byId("nicknameField").hidden = !is("signup");
+    byId("agreeField").hidden = !is("signup");
+    byId("agreeLink").hidden = !is("signup");
     byId("forgotLink").hidden = !is("login");
     byId("backToLogin").hidden = !is("forgot", "reset", "sent");
     byId("kakaoArea").hidden = !is("login", "signup");
@@ -118,6 +120,10 @@
       (authMode === "signup" && !nickname);
     if (missing) {
       toast(t("reserve.invalid"), "error");
+      return;
+    }
+    if (authMode === "signup" && !f.agree.checked) {
+      toast(t("auth.agreeRequired"), "error");
       return;
     }
     const btn = byId("loginSubmit");

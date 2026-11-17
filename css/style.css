@@ -135,6 +135,8 @@ input:focus, select:focus, textarea:focus, button:focus-visible, .card:focus-vis
 /* forms */
 .form { display: flex; flex-direction: column; gap: 10px; }
 .form label { display: flex; flex-direction: column; gap: 4px; font-size: .88rem; font-weight: 600; }
+.form label.check-field { flex-direction: row; align-items: center; gap: 8px; font-weight: 500; }
+.form label.check-field input { width: 18px; height: 18px; margin: 0; flex: none; }
 .form .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .form p { margin: 0; }
 .hint { color: var(--error); font-size: .85rem; min-height: 1em; }
@@ -159,6 +161,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible, .card:focus-vis
 /* footer */
 .site-footer { border-top: 1px solid var(--line); padding: 24px 0 36px; font-size: .88rem; color: var(--muted); }
 .site-footer p { margin: 4px 0; }
+.site-footer a { color: var(--accent); }
 
 @media (max-width: 760px) {
   .toolbar { grid-template-columns: 1fr 1fr; }

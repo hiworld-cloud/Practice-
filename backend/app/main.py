@@ -43,7 +43,22 @@ async def lifespan(_app: FastAPI):
         # 공공데이터로 진짜 병원을 넣고 샘플을 지운 뒤에는 다시 생기지 않아요.
         if s.exec(select(Clinic).limit(1)).first() is None:
             seed(s)
+        delete_old_reservations(s)
     yield
+
+
+RESERVATION_KEEP_DAYS = 365  # 개인정보처리방침에 적은 보관 기간: 상담 날짜로부터 1년
+
+
+def delete_old_reservations(session: Session) -> int:
+    """상담 날짜가 1년 넘게 지난 예약을 지워요. 서버가 켜질 때마다 한 번 실행돼요.
+    (Render 무료 서버는 자주 잠들었다 깨기 때문에 이것만으로도 충분히 자주 돌아가요.)"""
+    cutoff = (datetime.now(KST).date() - timedelta(days=RESERVATION_KEEP_DAYS)).isoformat()
+    old = session.exec(select(Reservation).where(Reservation.date < cutoff)).all()
+    for r in old:
+        session.delete(r)
+    session.commit()
+    return len(old)
 
 
 app = FastAPI(title="BeautyBook API", version="0.1.0", lifespan=lifespan)
@@ -265,6 +280,11 @@ def site_config():
 @app.get("/", include_in_schema=False)
 def index():
     return FileResponse(SITE_DIR / "index.html")
+
+
+@app.get("/privacy.html", include_in_schema=False)
+def privacy():
+    return FileResponse(SITE_DIR / "privacy.html")
 
 
 app.mount("/css", StaticFiles(directory=SITE_DIR / "css"), name="css")
