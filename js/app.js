@@ -51,12 +51,13 @@
    *   login  : 이메일 + 비밀번호
    *   signup : 이메일 + 비밀번호 + 닉네임 → 인증 메일 발송
    *   forgot : 이메일만 → 비밀번호 재설정 링크 발송
-   *   reset  : 새 비밀번호만 (메일 속 재설정 링크로 들어왔을 때) */
+   *   reset  : 새 비밀번호만 (메일 속 재설정 링크로 들어왔을 때)
+   *   sent   : 가입 직후 "메일을 확인해 주세요" 안내만 (입력 칸 없음) */
   let authMode = "login";
   let notice = null; // { key, vars, resend } 창 위쪽 안내 문구
   const byId = id => document.getElementById(id);
-  const AUTH_TITLE = { login: "auth.title", signup: "auth.signupTitle", forgot: "auth.forgotTitle", reset: "auth.resetTitle" };
-  const AUTH_SUBMIT = { login: "auth.tabLogin", signup: "auth.tabSignup", forgot: "auth.sendReset", reset: "auth.changePassword" };
+  const AUTH_TITLE = { login: "auth.title", signup: "auth.signupTitle", forgot: "auth.forgotTitle", reset: "auth.resetTitle", sent: "auth.sentTitle" };
+  const AUTH_SUBMIT = { login: "auth.tabLogin", signup: "auth.tabSignup", forgot: "auth.sendReset", reset: "auth.changePassword", sent: "auth.tabLogin" };
 
   function setAuthMode(mode) {
     authMode = mode;
@@ -69,13 +70,14 @@
     });
     byId("loginTitle").textContent = t(AUTH_TITLE[mode]);
     byId("authTabs").hidden = !is("login", "signup");
+    f.hidden = is("sent"); // 가입 직후에는 입력 칸을 숨겨서 "비밀번호를 또 쳐야 하나?" 헷갈리지 않게
     byId("emailField").hidden = is("reset");
     byId("passwordField").hidden = is("forgot");
     byId("passwordLabel").textContent = t(is("reset") ? "auth.newPassword" : "auth.password");
     byId("passwordHint").hidden = !is("signup", "reset");
     byId("nicknameField").hidden = !is("signup");
     byId("forgotLink").hidden = !is("login");
-    byId("backToLogin").hidden = !is("forgot", "reset");
+    byId("backToLogin").hidden = !is("forgot", "reset", "sent");
     byId("kakaoArea").hidden = !is("login", "signup");
     f.nickname.required = is("signup");
     f.password.autocomplete = is("login") ? "current-password" : "new-password";
@@ -125,8 +127,8 @@
         loggedIn(await API.login({ email, password }), "auth.welcome");
       } else if (authMode === "signup") {
         await API.signup({ email, password, nickname });
-        // 가입 완료 → 로그인 탭으로 돌아가서 "메일을 확인해 주세요" 안내
-        setAuthMode("login");
+        // 가입 완료 → "메일을 확인해 주세요" 안내만 보여 줘요 (이메일 칸 값은 다시 보내기에 써요)
+        setAuthMode("sent");
         f.password.value = "";
         showNotice("auth.verifySent", { email }, true);
       } else if (authMode === "forgot") {
