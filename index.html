@@ -57,7 +57,8 @@
 
   <footer class="site-footer">
     <div class="container">
-      <p data-i18n="footer.notice">이 사이트는 연습용 예시입니다. 모든 병원 정보는 가상의 샘플 데이터이며, 별점과 예약은 이 브라우저에만 저장됩니다.</p>
+      <p data-i18n="footer.notice">이 사이트는 연습용 예시입니다. 병원 정보는 공공데이터와 가상 샘플이며, 예약은 실제 병원에 전달되지 않습니다.</p>
+      <p><a href="privacy.html" data-i18n="footer.privacy">개인정보처리방침</a></p>
       <p class="muted">&copy; 2026 BeautyBook (demo)</p>
     </div>
   </footer>
@@ -99,6 +100,8 @@
         <label id="passwordField"><span id="passwordLabel">비밀번호</span><input name="password" type="password" required autocomplete="current-password" maxlength="128"></label>
         <p class="muted field-note" id="passwordHint" data-i18n="auth.passwordRule">8자 이상, 글자와 숫자를 섞어 주세요.</p>
         <label id="nicknameField"><span data-i18n="auth.nickname">닉네임 (리뷰에 표시돼요)</span><input name="nickname" maxlength="20" autocomplete="nickname"></label>
+        <label class="check-field" id="agreeField"><input name="agree" type="checkbox"><span data-i18n="auth.agree">만 14세 이상이며, 개인정보처리방침에 동의해요</span></label>
+        <a class="field-note" id="agreeLink" href="privacy.html" target="_blank" rel="noopener" data-i18n="auth.readPrivacy">개인정보처리방침 읽어 보기</a>
         <button class="btn btn-primary" type="submit" id="loginSubmit"></button>
       </form>
       <p class="auth-links">
@@ -108,6 +111,7 @@
       <div id="kakaoArea">
         <p class="divider"><span data-i18n="auth.or">또는</span></p>
         <button class="btn btn-kakao btn-wide" type="button" data-kakao data-i18n="auth.kakao">카카오로 계속하기</button>
+        <p class="muted field-note" data-i18n="auth.kakaoAgree">카카오로 계속하면 만 14세 이상이며 개인정보처리방침에 동의한 것으로 봐요.</p>
       </div>
     </div>
   </dialog>
