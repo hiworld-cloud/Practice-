@@ -72,6 +72,11 @@ input:focus, select:focus, textarea:focus, button:focus-visible, .card:focus-vis
 .modal-small { width: min(420px, calc(100% - 24px)); }
 .modal-small .tabs { margin-bottom: 14px; }
 .field-note { font-size: .82rem; }
+.auth-notice { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; font-size: .9rem; }
+.auth-notice p { margin: 0; }
+.auth-notice .btn { margin-top: 10px; }
+.auth-links { text-align: center; margin: 12px 0 0; }
+.link-btn { border: 0; background: none; padding: 4px; color: var(--muted); font-size: .85rem; text-decoration: underline; cursor: pointer; }
 .btn-wide { width: 100%; justify-content: center; padding: 12px; }
 .divider { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: .85rem; margin: 16px 0 12px; }
 .divider::before, .divider::after { content: ""; flex: 1; border-top: 1px solid var(--line); }

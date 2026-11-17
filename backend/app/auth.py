@@ -52,11 +52,12 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
-LOGIN_ENV_KEYS = ("KAKAO_REST_API_KEY", "KAKAO_CLIENT_SECRET", "KAKAO_REDIRECT_URI", "SECRET_KEY", "FRONTEND_URL")
+LOGIN_ENV_KEYS = ("KAKAO_REST_API_KEY", "KAKAO_CLIENT_SECRET", "KAKAO_REDIRECT_URI", "SECRET_KEY", "FRONTEND_URL",
+                  "RESEND_API_KEY", "MAIL_FROM")
 
 
 def load_login_env(path: Path = ENV_FILE) -> None:
-    """내 컴퓨터에서 연습할 때 backend/.env 의 카카오 설정만 읽어요.
+    """내 컴퓨터에서 연습할 때 backend/.env 의 로그인·메일 설정만 읽어요.
     (DATABASE_URL 같은 다른 값은 읽지 않아요. 실수로 Supabase에 연결되지 않게)"""
     if not path.exists():
         return

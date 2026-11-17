@@ -6,7 +6,7 @@
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from sqlalchemy import JSON, BigInteger, Column, String, UniqueConstraint
+from sqlalchemy import JSON, BigInteger, Boolean, Column, String, UniqueConstraint, false
 from sqlmodel import Field, SQLModel
 
 
@@ -40,8 +40,10 @@ class User(SQLModel, table=True):
     kakao_id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, unique=True, nullable=True, index=True))
     # 이메일로 가입한 사람만 있어요. 항상 소문자로 저장해요.
     email: Optional[str] = Field(default=None, sa_column=Column(String(254), unique=True, nullable=True, index=True))
-    # 비밀번호 원문이 아니라 "알아볼 수 없게 바꾼 값"(해시)만 저장해요. passwords.py 참고
+    # 비밀번호 원문이 아니라 "알아볼 수 없게 바꾼 값"(해시)만 저장해요. email_login.py 참고
     password_hash: Optional[str] = None
+    # 메일로 보낸 링크를 눌러서 "진짜 내 이메일"임을 확인했는지. 확인 전에는 이메일 로그인이 안 돼요.
+    email_verified: bool = Field(default=False, sa_column=Column(Boolean, nullable=False, server_default=false()))
     nickname: str = ""
     created_at: datetime = Field(default_factory=_now)
     last_login_at: datetime = Field(default_factory=_now)
